@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Simple Map</title>
+    <meta name="viewport" content="initial-scale=1.0">
+    <meta charset="utf-8">
+    <style>
+        /* Always set the map height explicitly to define the size of the div
+       * element that contains the map. */
+
+        #map {
+            height: 80%;
+        }
+
+        /* Optional: Makes the sample page fill the window. */
+
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        #signup {
+            position: absolute;
+            z-index: 90;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            margin: auto;
+            width: 90%;
+            height: 50%;
+            background-color: white;
+            border: 1px solid black;
+            border-radius: 5px;
+            color: black;
+            text-align: center;
+            padding: 10px;
+            visibility: hidden;
+        }
+
+        #signup div {
+            padding: 10px 0px;
+        }
+
+        #signup .button {
+            background-color: rgb(243, 150, 150);
+            border: 1px solid black;
+            border-radius: 10px;
+            text-align: center;
+            margin: 20px;
+            padding: 20px;
+            font-size: 120%;
+        }
+
+        #signup .button:hover {
+            opacity: 0.8;
+        }
+
+        #signup .button:active {
+            opacity: 0.2;
+        }
+
+        #signup .signup_warning {
+            color: red;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="map"></div>
+    <div id="signup">
+        <form name="signup_form">
+            <h1>ユーザー登録</h1>
+            <div>表示名:
+                <input type="text" name="name" size="10" maxlength="6">
+            </div>
+            <div>性別：
+                <input type="radio" name="sex" value="female">女性
+                <input type="radio" name="sex" value="male">男性
+            </div>
+            <div id="signup_button" class="button" onclick="clickSignup()">登録</div>
+            <div class="signup_warning"></div>
+        </form>
+    </div>
+    <script>
+        var map;
+        var nowLat, nowLng;
+        var mapStatus = "init";
+        var markers = [];
+        var users = [];
+        var db;
+
+        function clickSignup() {
+            var fm = document.forms.signup_form;
+            console.log(fm.name.value);
+            console.log(fm.sex.value);
+            if (!fm.name.value) {
+                console.log("A");
+                $('.signup_warning').text('表示名を入力してください.');
+            } else if (!fm.sex.value) {
+                $('.signup_warning').text('性別を選んでください.');
+            } else {
+                $('#signup_button').hide();
+                $('.signup_warning').text('登録中......');
+                hideSignup();
+            }
+        }
+
+        function hideSignup() {
+            $('#signup').hide();
+        }
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: new google.maps.LatLng(nowLat, nowLng),
+                zoom: 17
+            });
+            for (let marker of markers) {
+                if (marker) {
+                    marker.setMap(map);
+                }
+            }
+        }
+
+        function markerSet(id, lat, lng, name) {
+            if (!markers[id]) {
+                markers[id] = new google.maps.Marker({
+                    map: map,
+                });
+            }
+            markers[id].setPosition(new google.maps.LatLng(lat, lng));
+            if (name && name != "") {
+                var label = {
+                    fontSize: "9px",
+                    text: name,
+                    color: "white",
+                }
+                markers[id].setLabel(label);
+            }
+
+            if (id == 0) {
+                markers[id].setAnimation(google.maps.Animation.BOUNCE);
+            }
+            // console.log(markers[id]);
+        }
+
+
+        // 自分の情報取得（取得できなければ、ユーザー登録）
+        function getMyInfo(_uid) {
+            userDb.getUserData(_uid, function (doc) {
+                if (doc.exists) {
+                    console.log("Document data:", doc.data());
+                } else {
+                    console.log("No such document!");
+                }
+                getAreaUsers();
+            });
+        }
+
+        // 近辺のユーザー情報取得、マーカー設置
+        function getAreaUsers() {
+            userDb.getAreaUsers({}, function (list) {
+                for (let user of list) {
+                    console.log(user);
+                    markerSet(user.uid, user.lat, user.lng, user.name);
+                }
+            });
+        }
+
+        window.onload = function () {
+            mapStatus = "init";
+            var watchID = navigator.geolocation.watchPosition(function (position) {
+                nowLat = position.coords.latitude;
+                nowLng = position.coords.longitude;
+                console.log("pos : " + nowLat + "," + nowLng);
+                if (mapStatus == "init") {
+                    initMap();
+                    markerSet(0, nowLat, nowLng, "");
+                    mapStatus = "now";
+                }
+            });
+
+            // Initialize Firebase
+            var config = {
+                apiKey: "AIzaSyCcG1LxY0b5sddV4R1bYogW3TY54fZGBaY",
+                authDomain: "konkatsu-212503.firebaseapp.com",
+                databaseURL: "https://konkatsu-212503.firebaseio.com",
+                projectId: "konkatsu-212503",
+                storageBucket: "konkatsu-212503.appspot.com",
+                messagingSenderId: "461614583794"
+            };
+            firebase.initializeApp(config);
+            // Initialize Cloud Firestore through Firebase
+            userDb.init(); //db = firebase.firestore();
+
+            // 端末UID取得
+            new Fingerprint2().get(function (result, components) {
+                var uid = result;
+                console.log("Fingerprint: result = " + result);
+                console.log("Fingerprint: components = " + components);
+
+                //ユーザー情報を取得（取得できなければ、ユーザー登録）
+                getMyInfo(uid);
+            });
+
+
+
+        }
+    </script>
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha256-3edrmyuQ0w65f8gfBsqowzjJe2iM6n0nKciPUp8y+7E="
+        crossorigin="anonymous" defer></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBQdVnFEapGR5pn0W3zapAFG1fiCfCixFQ" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fingerprintjs2/1.6.1/fingerprint2.min.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/4.12.1/firebase.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/4.12.1/firebase-firestore.js" defer></script>
+    <script src="userDb.js" defer></script>
+</body>
+
+</html>
