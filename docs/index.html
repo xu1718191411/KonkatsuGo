@@ -38,14 +38,15 @@
             color: black;
             text-align: center;
             padding: 10px;
-            visibility: hidden;
+            display: none;
         }
 
         #signup div {
             padding: 10px 0px;
         }
 
-        #signup .button {
+        .button {
+            text-align: center;
             background-color: rgb(243, 150, 150);
             border: 1px solid black;
             border-radius: 10px;
@@ -55,13 +56,14 @@
             font-size: 120%;
         }
 
-        #signup .button:hover {
+        .button:hover {
             opacity: 0.8;
         }
 
-        #signup .button:active {
+        .button:active {
             opacity: 0.2;
         }
+
 
         #signup .signup_warning {
             color: red;
@@ -71,6 +73,9 @@
 
 <body>
     <div id="map"></div>
+    <div>
+        <div class="button" onclick="setDummyUser()">ダミーユーザー追加</div>
+    </div>
     <div id="signup">
         <form name="signup_form">
             <h1>ユーザー登録</h1>
@@ -90,8 +95,12 @@
         var nowLat, nowLng;
         var mapStatus = "init";
         var markers = [];
-        var users = [];
+        var users = {};
         var db;
+
+        function startSignup() {
+            $('#signup').show();
+        }
 
         function clickSignup() {
             var fm = document.forms.signup_form;
@@ -105,7 +114,15 @@
             } else {
                 $('#signup_button').hide();
                 $('.signup_warning').text('登録中......');
+                userDb.setUserData(users[0].uid, {
+                    uid: users[0].uid,
+                    name: fm.name.value,
+                    sex: fm.sex.value,
+                    lat: nowLat,
+                    lng: nowLng,
+                });
                 hideSignup();
+                getAreaUsers(); //近辺のユーザー表示
             }
         }
 
@@ -126,11 +143,13 @@
         }
 
         function markerSet(id, lat, lng, name) {
+            if (id == users[0].uid)
+                return;
+                
             if (!markers[id]) {
-                markers[id] = new google.maps.Marker({
-                    map: map,
-                });
+                markers[id] = new google.maps.Marker();
             }
+            markers[id].setMap(map);
             markers[id].setPosition(new google.maps.LatLng(lat, lng));
             if (name && name != "") {
                 var label = {
@@ -150,36 +169,108 @@
 
         // 自分の情報取得（取得できなければ、ユーザー登録）
         function getMyInfo(_uid) {
+            users[0] = {};
+            users[0].uid = _uid;
             userDb.getUserData(_uid, function (doc) {
                 if (doc.exists) {
                     console.log("Document data:", doc.data());
+                    users[0] = doc.data();
+                    getAreaUsers();
                 } else {
                     console.log("No such document!");
+                    startSignup();
                 }
-                getAreaUsers();
             });
         }
 
         // 近辺のユーザー情報取得、マーカー設置
         function getAreaUsers() {
             userDb.getAreaUsers({}, function (list) {
-                for (let user of list) {
-                    console.log(user);
-                    markerSet(user.uid, user.lat, user.lng, user.name);
-                }
+                list.forEach(function (doc) {
+                    if (doc) {
+                        let data = doc.data();
+                        if (data.name) {
+                            users[data.uid] = data;
+                            // console.log("markerset", data);
+                            markerSet(data.uid, data.lat, data.lng, data.name);
+                        }
+                    }
+                });
+            });
+
+            //ダミーユーザー移動
+            moveDummyUser();
+
+            setTimeout(getAreaUsers, 1000 * 3);
+        }
+
+
+        //ダミーユーザー
+        function setDummyUser() {
+            var name = genDummyUserName();
+            var id = getDummyUserId(name);
+            var r1 = (Math.random() - 0.5) * 0.004;
+            var r2 = (Math.random() - 0.5) * 0.004;
+            userDb.setUserData(id, {
+                uid: id,
+                name: name,
+                sex: "male",
+                lat: nowLat + r1,
+                lng: nowLng + r2,
+                dummy: true,
             });
         }
+
+        function moveDummyUser() {
+            for (let id in users) {
+                let user = users[id];
+                if (user.dummy) {
+                    var r1 = (Math.random() - 0.5) * 0.0003;
+                    var r2 = (Math.random() - 0.5) * 0.0003;
+                    user.lat += r1;
+                    user.lng += r2;
+                    userDb.setUserData(id, user);
+                }
+            }
+        }
+
+        function genDummyUserName() {
+            var dict = "あいうけおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよ";
+            var name = "";
+            for (let i = 0; i < 3; i++) {
+                name += dict.charAt(Math.floor(Math.random() * dict.length));
+            }
+            // console.log(name);
+            return name;
+        }
+
+        function getDummyUserId(name) {
+            var id = name; //+ (Math.floor(Math.random() * 1000000000000)).toString();
+            // console.log(id);
+            return id;
+        }
+
 
         window.onload = function () {
             mapStatus = "init";
             var watchID = navigator.geolocation.watchPosition(function (position) {
                 nowLat = position.coords.latitude;
                 nowLng = position.coords.longitude;
-                console.log("pos : " + nowLat + "," + nowLng);
+                // console.log("pos : " + nowLat + "," + nowLng);
                 if (mapStatus == "init") {
                     initMap();
-                    markerSet(0, nowLat, nowLng, "");
                     mapStatus = "now";
+
+                    //リロードごとに付近にダミーを一人追加
+                    // setDummyUser();
+                }
+                // 自分の位置情報更新
+                markerSet(0, nowLat, nowLng, "");
+                // console.log(users[0]);
+                if (users[0] && users[0].name) {
+                    users[0].lat = nowLat;
+                    users[0].lng = nowLng;
+                    userDb.setUserData(users[0].uid, users[0]);
                 }
             });
 
@@ -200,7 +291,7 @@
             new Fingerprint2().get(function (result, components) {
                 var uid = result;
                 console.log("Fingerprint: result = " + result);
-                console.log("Fingerprint: components = " + components);
+                // console.log("Fingerprint: components = " + components);
 
                 //ユーザー情報を取得（取得できなければ、ユーザー登録）
                 getMyInfo(uid);
@@ -216,7 +307,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fingerprintjs2/1.6.1/fingerprint2.min.js" defer></script>
     <script src="https://www.gstatic.com/firebasejs/4.12.1/firebase.js" defer></script>
     <script src="https://www.gstatic.com/firebasejs/4.12.1/firebase-firestore.js" defer></script>
-    <script src="userDb.js" defer></script>
+    <script src="userDb.js?ver=2018080801" defer></script>
 </body>
 
 </html>

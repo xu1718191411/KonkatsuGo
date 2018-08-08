@@ -52,9 +52,28 @@ var userDb = {
         });
     },
 
+    // ユーザー情報セット
+    setUserData: function (uid, data) {
+        data.timestamp = new Date();
+        // console.log('setUserData :');
+        // console.log(uid);
+        // console.log(data);
+        this.db.collection(this.COLLECTION).doc(uid).set(data)
+            .then(function () {
+                console.log("Document successfully written!");
+            })
+            .catch(function (error) {
+                console.error("Error writing document: ", error);
+            });
+    },
+
     // 範囲内のユーザー情報取得
     getAreaUsers: function (parm, callback) {
-        callback(this.test_users);
+        this.db.collection(this.COLLECTION)
+            .get()
+            .then(function (querySnapshot) {
+                callback(querySnapshot);
+            });
     },
 
 }
