@@ -31,7 +31,7 @@
             right: 0;
             margin: auto;
             width: 90%;
-            height: 50%;
+            height: auto;
             background-color: white;
             border: 1px solid black;
             border-radius: 5px;
@@ -86,10 +86,13 @@
                 <input type="radio" name="sex" value="female">女性
                 <input type="radio" name="sex" value="male">男性
             </div>
-            <div id="signup_button" class="button" onclick="clickSignup()">登録</div>
+            <div id="signup_button" class="button" onclick="signup.clickSignup()">登録</div>
             <div class="signup_warning"></div>
         </form>
     </div>
+
+
+
     <script>
         var map;
         var nowLat, nowLng;
@@ -97,6 +100,44 @@
         var markers = [];
         var users = {};
         var db;
+
+        // ユーザー登録
+        var signup = {
+            resolve: null,
+
+            start: function () {
+                $('#signup').show();
+
+                return new Promise(resolve => {
+                    this.resolve = resolve;
+                });
+            },
+
+            close: function () {
+                $('#signup').hide();
+            },
+
+            clickSignup: function () {
+                var fm = document.forms.signup_form;
+                console.log(fm.name.value);
+                console.log(fm.sex.value);
+                if (!fm.name.value) {
+                    $('.signup_warning').text('表示名を入力してください.');
+                } else if (!fm.sex.value) {
+                    $('.signup_warning').text('性別を選んでください.');
+                } else {
+                    $('#signup_button').hide();
+                    $('.signup_warning').text('登録中......');
+                    let data = {
+                        name: fm.name.value,
+                        sex: fm.sex.value,
+                    };
+                    this.close();
+                    this.resolve(data);
+                }
+            },
+
+        };
 
         function startSignup() {
             $('#signup').show();
@@ -168,19 +209,22 @@
 
 
         // 自分の情報取得（取得できなければ、ユーザー登録）
-        function getMyInfo(_uid) {
+        async function getMyInfo(_uid) {
             users[0] = {};
             users[0].uid = _uid;
-            userDb.getUserData(_uid, function (doc) {
-                if (doc.exists) {
-                    console.log("Document data:", doc.data());
-                    users[0] = doc.data();
-                    getAreaUsers();
-                } else {
-                    console.log("No such document!");
-                    startSignup();
-                }
-            });
+            doc = await userDb.getUserData(_uid);
+            if (doc.exists) {
+                console.log("Document data:", doc.data());
+                users[0] = doc.data();
+            } else {
+                console.log("No such document!");
+                let data = await signup.start();
+                data.uid = _uid;
+                data.lat = nowLat;
+                data.lng = nowLng;
+                users[0] = data;
+                userDb.setUserData(_uid, data);
+            }
         }
 
         // 近辺のユーザー情報取得、マーカー設置
@@ -250,30 +294,22 @@
             return id;
         }
 
-
-        window.onload = function () {
-            mapStatus = "init";
-            var watchID = navigator.geolocation.watchPosition(function (position) {
-                nowLat = position.coords.latitude;
-                nowLng = position.coords.longitude;
-                // console.log("pos : " + nowLat + "," + nowLng);
-                if (mapStatus == "init") {
-                    initMap();
-                    mapStatus = "now";
-
-                    //リロードごとに付近にダミーを一人追加
-                    // setDummyUser();
-                }
-                // 自分の位置情報更新
-                markerSet(0, nowLat, nowLng, "");
-                // console.log(users[0]);
-                if (users[0] && users[0].name) {
-                    users[0].lat = nowLat;
-                    users[0].lng = nowLng;
-                    userDb.setUserData(users[0].uid, users[0]);
-                }
+        // 端末UID取得
+        function getUID() {
+            return new Promise(resolve => {
+                new Fingerprint2().get((result) => {
+                    resolve(result);
+                })
             });
+        }
 
+
+        // ロード後に最初に走る処理
+        window.onload = async function () {
+            mapStatus = "init";
+
+
+            // DB初期化
             // Initialize Firebase
             var config = {
                 apiKey: "AIzaSyCcG1LxY0b5sddV4R1bYogW3TY54fZGBaY",
@@ -287,15 +323,41 @@
             // Initialize Cloud Firestore through Firebase
             userDb.init(); //db = firebase.firestore();
 
-            // 端末UID取得
-            new Fingerprint2().get(function (result, components) {
-                var uid = result;
-                console.log("Fingerprint: result = " + result);
-                // console.log("Fingerprint: components = " + components);
 
-                //ユーザー情報を取得（取得できなければ、ユーザー登録）
-                getMyInfo(uid);
+
+
+            var watchID = navigator.geolocation.watchPosition(function (position) {
+                nowLat = position.coords.latitude;
+                nowLng = position.coords.longitude;
+                // console.log("pos : " + nowLat + "," + nowLng);
+                if (mapStatus == "init") {
+                    initMap();
+                    mapStatus = "now";
+
+                }
+                // 自分の位置情報更新
+                markerSet(0, nowLat, nowLng, "");
+                // console.log(users[0]);
+                if (users[0] && users[0].name) {
+                    users[0].lat = nowLat;
+                    users[0].lng = nowLng;
+                    userDb.setUserData(users[0].uid, users[0]);
+                }
             });
+
+
+
+            // 端末UID取得
+            var uid = await getUID();
+            console.log("Fingerprint: uid = " + uid);
+
+            //ユーザー情報を取得（取得できなければ、ユーザー登録）
+            await getMyInfo(uid);
+
+            //近辺のユーザー取得
+            getAreaUsers();
+
+
 
 
 
@@ -307,7 +369,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fingerprintjs2/1.6.1/fingerprint2.min.js" defer></script>
     <script src="https://www.gstatic.com/firebasejs/4.12.1/firebase.js" defer></script>
     <script src="https://www.gstatic.com/firebasejs/4.12.1/firebase-firestore.js" defer></script>
-    <script src="userDb.js?ver=2018080801" defer></script>
+    <script src="userDb.js?ver=2018080902" defer></script>
 </body>
 
 </html>

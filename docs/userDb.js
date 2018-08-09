@@ -42,14 +42,10 @@ var userDb = {
     },
 
     // 特定UIDのユーザー情報取得
-    getUserData: function (uid, callback) {
-        var docRef = this.db.collection(this.COLLECTION).doc(uid);
-        docRef.get().then(function (doc) {
-            callback(doc);
-        }).catch(function (error) {
-            console.log("Error getting document:", error);
-            alert('DB Error : ' + error);
-        });
+    getUserData: async function (uid) {
+        const docRef = this.db.collection(this.COLLECTION).doc(uid);
+        const doc = await docRef.get();
+        return doc;
     },
 
     // ユーザー情報セット
