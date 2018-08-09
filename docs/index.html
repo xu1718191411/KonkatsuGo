@@ -20,6 +20,7 @@
             height: 100%;
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
         }
 
         #signup {
@@ -139,37 +140,6 @@
 
         };
 
-        function startSignup() {
-            $('#signup').show();
-        }
-
-        function clickSignup() {
-            var fm = document.forms.signup_form;
-            console.log(fm.name.value);
-            console.log(fm.sex.value);
-            if (!fm.name.value) {
-                console.log("A");
-                $('.signup_warning').text('表示名を入力してください.');
-            } else if (!fm.sex.value) {
-                $('.signup_warning').text('性別を選んでください.');
-            } else {
-                $('#signup_button').hide();
-                $('.signup_warning').text('登録中......');
-                userDb.setUserData(users[0].uid, {
-                    uid: users[0].uid,
-                    name: fm.name.value,
-                    sex: fm.sex.value,
-                    lat: nowLat,
-                    lng: nowLng,
-                });
-                hideSignup();
-                getAreaUsers(); //近辺のユーザー表示
-            }
-        }
-
-        function hideSignup() {
-            $('#signup').hide();
-        }
 
         function initMap() {
             map = new google.maps.Map(document.getElementById('map'), {
@@ -184,7 +154,7 @@
         }
 
         function markerSet(id, lat, lng, name) {
-            if (id == users[0].uid)
+            if (!users[0] || (id == users[0].uid))
                 return;
 
             if (!markers[id]) {
