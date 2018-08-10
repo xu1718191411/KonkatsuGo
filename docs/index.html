@@ -10,7 +10,7 @@
        * element that contains the map. */
 
         #map {
-            height: 80%;
+            height: 50%;
         }
 
         /* Optional: Makes the sample page fill the window. */
@@ -46,6 +46,10 @@
             padding: 10px 0px;
         }
 
+        #signup .signup_warning {
+            color: red;
+        }
+
         .button {
             text-align: center;
             background-color: rgb(243, 150, 150);
@@ -65,9 +69,19 @@
             opacity: 0.2;
         }
 
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            border: 1px solid #ddd;
+            padding: 2px;
+            margin: 0;
+        }
 
-        #signup .signup_warning {
-            color: red;
+        .toolbar>.button {
+            flex: 1 0 100px;
+            margin: 2px 4px;
+            padding: 8px 5px;
+            font-size: 12px;
         }
     </style>
 </head>
@@ -75,7 +89,11 @@
 <body>
     <div id="map"></div>
     <div>
-        <div class="button" onclick="setDummyUser()">ダミーユーザー追加</div>
+        <div class="toolbar">
+            <div class="button" onclick="setDummyUser()">DummyUser追加</div>
+            <div class="button" id="buttonPrivate" onclick="private.click()">自分公開中</div>
+            <div class="button" id="buttonDispMode" onclick="dispMode.click()">全員表示</div>
+        </div>
     </div>
     <div id="signup">
         <form name="signup_form">
@@ -101,6 +119,20 @@
         var markers = [];
         var users = {};
         var db;
+
+        // プライベートモード
+        var private = {
+            click: function () {
+                console.log("private.click");
+            }
+        };
+
+        // 表示モード
+        var dispMode = {
+            click: function () {
+                console.log("dispMode.click");
+            }
+        };
 
         // ユーザー登録
         var signup = {
