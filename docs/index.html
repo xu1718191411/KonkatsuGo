@@ -122,8 +122,22 @@
 
         // プライベートモード
         var private = {
+            isPrivate: true,
+            disp: function () {
+                if (this.isPrivate)
+                    $('#buttonPrivate').text('自分非公開中');
+                else
+                    $('#buttonPrivate').text('自分公開中');
+            },
+            init: function () {
+                this.isPrivate = true;
+                this.disp();
+            },
             click: function () {
                 console.log("private.click");
+                this.isPrivate = !this.isPrivate;
+                this.disp();
+                setMyInfo(); //DB反映
             }
         };
 
@@ -192,17 +206,22 @@
             if (!markers[id]) {
                 markers[id] = new google.maps.Marker();
             }
-            markers[id].setMap(map);
-            markers[id].setPosition(new google.maps.LatLng(lat, lng));
-            if (name && name != "") {
-                var label = {
-                    fontSize: "9px",
-                    text: name,
-                    color: "white",
-                }
-                markers[id].setLabel(label);
-            }
 
+            if (lat && lng) {
+                markers[id].setMap(map);
+                markers[id].setPosition(new google.maps.LatLng(lat, lng));
+                if (name && name != "") {
+                    var label = {
+                        fontSize: "9px",
+                        text: name,
+                        color: "white",
+                    }
+                    markers[id].setLabel(label);
+                }
+            }
+            else {
+                markers[id].setMap(null);
+            }
             if (id == 0) {
                 markers[id].setAnimation(google.maps.Animation.BOUNCE);
             }
@@ -227,6 +246,20 @@
                 users[0] = data;
                 userDb.setUserData(_uid, data);
             }
+        }
+        // 自分の情報セット
+        function setMyInfo() {
+            if (users[0] && users[0].name) {
+                if (private.isPrivate) {
+                    users[0].lat = null;
+                    users[0].lng = null;
+                } else {
+                    users[0].lat = nowLat;
+                    users[0].lng = nowLng;
+                }
+                userDb.setUserData(users[0].uid, users[0]);
+            }
+
         }
 
         // 近辺のユーザー情報取得、マーカー設置
@@ -310,6 +343,8 @@
         window.onload = async function () {
             mapStatus = "init";
 
+            private.init();
+
 
             // DB初期化
             // Initialize Firebase
@@ -339,12 +374,8 @@
                 }
                 // 自分の位置情報更新
                 markerSet(0, nowLat, nowLng, "");
+                setMyInfo();
                 // console.log(users[0]);
-                if (users[0] && users[0].name) {
-                    users[0].lat = nowLat;
-                    users[0].lng = nowLng;
-                    userDb.setUserData(users[0].uid, users[0]);
-                }
             });
 
 
