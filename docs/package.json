@@ -1,0 +1,17 @@
+{
+  "name": "konkatsu",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "http-server"
+  },
+  "dependencies": {
+    "http-server": "^0.7.4"
+  },
+  "description": "This is application for people who want to find pure friends who is going to develop a relationship",
+  "main": "config.js",
+  "keywords": [
+    "marray"
+  ],
+  "author": "syoui",
+  "license": "ISC"
+}

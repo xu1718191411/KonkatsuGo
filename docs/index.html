@@ -8,13 +8,12 @@
     <style>
         /* Always set the map height explicitly to define the size of the div
        * element that contains the map. */
-
+        
         #map {
             height: 50%;
         }
-
         /* Optional: Makes the sample page fill the window. */
-
+        
         html,
         body {
             height: 100%;
@@ -22,7 +21,7 @@
             padding: 0;
             box-sizing: border-box;
         }
-
+        
         #signup {
             position: absolute;
             z-index: 90;
@@ -41,15 +40,15 @@
             padding: 10px;
             display: none;
         }
-
+        
         #signup div {
             padding: 10px 0px;
         }
-
+        
         #signup .signup_warning {
             color: red;
         }
-
+        
         .button {
             text-align: center;
             background-color: rgb(243, 150, 150);
@@ -60,15 +59,15 @@
             padding: 20px;
             font-size: 120%;
         }
-
+        
         .button:hover {
             opacity: 0.8;
         }
-
+        
         .button:active {
             opacity: 0.2;
         }
-
+        
         .toolbar {
             display: flex;
             flex-wrap: wrap;
@@ -76,7 +75,7 @@
             padding: 2px;
             margin: 0;
         }
-
+        
         .toolbar>.button {
             flex: 1 0 80px;
             margin: 2px 4px;
@@ -119,21 +118,22 @@
         var markers = [];
         var users = {};
         var db;
+        var config;
 
         // プライベートモード
         var private = {
             isPrivate: true,
-            disp: function () {
+            disp: function() {
                 if (this.isPrivate)
                     $('#buttonPrivate').text('自分非公開中');
                 else
                     $('#buttonPrivate').text('自分公開中');
             },
-            init: function () {
+            init: function() {
                 this.isPrivate = true;
                 this.disp();
             },
-            click: function () {
+            click: function() {
                 console.log("private.click");
                 this.isPrivate = !this.isPrivate;
                 this.disp();
@@ -143,7 +143,7 @@
 
         // 表示モード
         var dispMode = {
-            click: function () {
+            click: function() {
                 console.log("dispMode.click");
             }
         };
@@ -152,7 +152,7 @@
         var signup = {
             resolve: null,
 
-            start: function () {
+            start: function() {
                 $('#signup').show();
 
                 return new Promise(resolve => {
@@ -160,11 +160,11 @@
                 });
             },
 
-            close: function () {
+            close: function() {
                 $('#signup').hide();
             },
 
-            clickSignup: function () {
+            clickSignup: function() {
                 var fm = document.forms.signup_form;
                 console.log(fm.name.value);
                 console.log(fm.sex.value);
@@ -218,8 +218,7 @@
                     }
                     markers[id].setLabel(label);
                 }
-            }
-            else {
+            } else {
                 markers[id].setMap(null);
             }
             if (id == 0) {
@@ -264,8 +263,10 @@
 
         // 近辺のユーザー情報取得、マーカー設置
         function getAreaUsers() {
-            userDb.getAreaUsers({}, function (list) {
-                list.forEach(function (doc) {
+            userDb.getAreaUsers({}, function(list) {
+
+                console.log("getAreaUsers");
+                list.forEach(function(doc) {
                     if (doc) {
                         let data = doc.data();
                         if (data.name) {
@@ -338,32 +339,21 @@
             });
         }
 
-
         // ロード後に最初に走る処理
-        window.onload = async function () {
+        window.onload = async function() {
             mapStatus = "init";
 
             private.init();
-
-
             // DB初期化
-            // Initialize Firebase
-            var config = {
-                apiKey: "AIzaSyCcG1LxY0b5sddV4R1bYogW3TY54fZGBaY",
-                authDomain: "konkatsu-212503.firebaseapp.com",
-                databaseURL: "https://konkatsu-212503.firebaseio.com",
-                projectId: "konkatsu-212503",
-                storageBucket: "konkatsu-212503.appspot.com",
-                messagingSenderId: "461614583794"
-            };
+            var config = configData.config;
+
+            console.log(11111111111111)
+            console.log(config)
             firebase.initializeApp(config);
             // Initialize Cloud Firestore through Firebase
             userDb.init(); //db = firebase.firestore();
 
-
-
-
-            var watchID = navigator.geolocation.watchPosition(function (position) {
+            var watchID = navigator.geolocation.watchPosition(function(position) {
                 nowLat = position.coords.latitude;
                 nowLng = position.coords.longitude;
                 // console.log("pos : " + nowLat + "," + nowLng);
@@ -378,10 +368,27 @@
                 // console.log(users[0]);
             });
 
+            // setInterval(function() {
+            //     navigator.geolocation.getCurrentPosition(function(position) {
+            //         nowLat = position.coords.latitude;
+            //         nowLng = position.coords.longitude;
+            //         console.log("pos : " + nowLat + "," + nowLng);
+            //         if (mapStatus == "init") {
+            //             initMap();
+            //             mapStatus = "now";
+
+            //         }
+            //         // 自分の位置情報更新
+            //         markerSet(0, nowLat, nowLng, "");
+            //         setMyInfo();
+            //         // console.log(users[0]);
+            //     });
+            // }, 3000);
 
 
             // 端末UID取得
             var uid = await getUID();
+            alert(uid)
             console.log("Fingerprint: uid = " + uid);
 
             //ユーザー情報を取得（取得できなければ、ユーザー登録）
@@ -390,18 +397,14 @@
             //近辺のユーザー取得
             getAreaUsers();
 
-
-
-
-
         }
     </script>
-    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha256-3edrmyuQ0w65f8gfBsqowzjJe2iM6n0nKciPUp8y+7E="
-        crossorigin="anonymous" defer></script>
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha256-3edrmyuQ0w65f8gfBsqowzjJe2iM6n0nKciPUp8y+7E=" crossorigin="anonymous" defer></script>
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBQdVnFEapGR5pn0W3zapAFG1fiCfCixFQ" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fingerprintjs2/1.6.1/fingerprint2.min.js" defer></script>
     <script src="https://www.gstatic.com/firebasejs/4.12.1/firebase.js" defer></script>
     <script src="https://www.gstatic.com/firebasejs/4.12.1/firebase-firestore.js" defer></script>
+    <script src="config.js"></script>
     <script src="userDb.js?ver=2018080902" defer></script>
 </body>
 
