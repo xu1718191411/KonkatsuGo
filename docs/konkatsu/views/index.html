@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>婚活GO</title>
+    <meta name="viewport" content="initial-scale=1.0">
+    <meta charset="utf-8">
+    <style>
+        /* Always set the map height explicitly to define the size of the div
+       * element that contains the map. */
+        
+        #map {
+            height: 50%;
+        }
+        /* Optional: Makes the sample page fill the window. */
+        
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        #signup {
+            position: absolute;
+            z-index: 90;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            margin: auto;
+            width: 90%;
+            height: auto;
+            background-color: white;
+            border: 1px solid black;
+            border-radius: 5px;
+            color: black;
+            text-align: center;
+            padding: 10px;
+            display: none;
+        }
+        
+        #signup div {
+            padding: 10px 0px;
+        }
+        
+        #signup .signup_warning {
+            color: red;
+        }
+        
+        .button {
+            text-align: center;
+            background-color: rgb(243, 150, 150);
+            border: 1px solid black;
+            border-radius: 10px;
+            text-align: center;
+            margin: 20px;
+            padding: 20px;
+            font-size: 120%;
+        }
+        
+        .button:hover {
+            opacity: 0.8;
+        }
+        
+        .button:active {
+            opacity: 0.2;
+        }
+        
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            border: 1px solid #ddd;
+            padding: 2px;
+            margin: 0;
+        }
+        
+        .toolbar>.button {
+            flex: 1 0 80px;
+            margin: 2px 4px;
+            padding: 8px 5px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="map"></div>
+    <div>
+        <div class="toolbar">
+            <div class="button" onclick="setDummyUser()">DummyUser追加</div>
+            <div class="button" id="buttonPrivate" onclick="private.click()">自分公開中</div>
+            <div class="button" id="buttonDispMode" onclick="dispMode.click()">全員表示</div>
+        </div>
+    </div>
+
+
+    <script>
+        var map;
+        var nowLat, nowLng;
+        var markers = [];
+        var users = {};
+        var db;
+        var config;
+
+        // プライベートモード
+        var private = {
+            isPrivate: true,
+            disp: function() {
+                if (this.isPrivate)
+                    $('#buttonPrivate').text('自分非公開中');
+                else
+                    $('#buttonPrivate').text('自分公開中');
+            },
+            init: function() {
+                this.isPrivate = true;
+                this.disp();
+            },
+            click: function() {
+                console.log("private.click");
+                this.isPrivate = !this.isPrivate;
+                this.disp();
+                setMyInfo(); //DB反映
+            }
+        };
+
+        // 表示モード
+        var dispMode = {
+            click: function() {
+                console.log("dispMode.click");
+            }
+        };
+
+        // ユーザー登録
+        var signup = {
+            resolve: null,
+
+            start: function() {
+                $('#signup').show();
+
+                // return new Promise(resolve => {
+                //     this.resolve = resolve;
+                // });
+            },
+
+            close: function() {
+                $('#signup').hide();
+            },
+
+            clickSignup: function() {
+
+            }
+
+        };
+
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: new google.maps.LatLng(35.6314665,139.8822901),
+                zoom: 17
+            });
+        }
+
+        function goToCurrentPosition(n){
+            if(map == null) return;
+            if(nowLat == null) return;
+            if(nowLng == null) return;
+            
+            map.setCenter(new google.maps.LatLng(nowLat,nowLng))
+        }
+
+        function showMarks(){
+            for (let marker of markers) {
+                if (marker) {
+                    marker.setMap(map);
+                }
+            }
+        }
+        
+        function markerSet(id, lat, lng, name) {
+            // if (!users[0] || (id == users[0].uid))
+            //     return;
+
+            if (!markers[id]) {
+                markers[id] = new google.maps.Marker();
+            }
+
+            if (lat && lng) {
+                markers[id].setMap(map);
+                markers[id].setPosition(new google.maps.LatLng(lat, lng));
+                if (name && name != "") {
+                    var label = {
+                        fontSize: "9px",
+                        text: name,
+                        color: "white",
+                    }
+                    markers[id].setLabel(label);
+                }
+            } else {
+                markers[id].setMap(null);
+            }
+            if (id == 0) {
+                markers[id].setAnimation(google.maps.Animation.BOUNCE);
+            }
+            // console.log(markers[id]);
+        }
+
+
+        // 自分の情報取得（取得できなければ、ユーザー登録）
+        function getMyInfo(_uid) {
+            users[0] = {};
+            userDb.getUserData(_uid,function(doc){
+            if (doc != null && doc.toString() != {}) {
+                console.log("Document data:", doc);
+                users[0] = doc.data();
+            } else {
+                console.log("No such document!");
+                showRegisterForm(_uid);
+                // let data =  signup.start();
+                // data.uid = _uid;
+                // data.lat = nowLat;
+                // data.lng = nowLng;
+                // users[0] = data;
+                // userDb.setUserData(_uid, data);
+            }
+            });
+        }
+
+
+        // 自分の情報セット
+        function setMyInfo() {
+            if (users[0] && users[0].name) {
+                if (private.isPrivate) {
+                    users[0].lat = null;
+                    users[0].lng = null;
+                } else {
+                    users[0].lat = nowLat;
+                    users[0].lng = nowLng;
+                }
+                userDb.setUserData(users[0].uid, users[0]);
+            }
+        }
+
+        // 近辺のユーザー情報取得、マーカー設置
+        function getAreaUsers() {
+            userDb.getAreaUsers({}, function(list) {
+
+                console.log("getAreaUsers");
+                list.forEach(function(doc) {
+                    if (doc) {
+                        let data = doc.data();
+                        if (data.name) {
+                            users[data.uid] = data;
+                            // console.log("markerset", data);
+                            markerSet(data.uid, data.lat, data.lng, data.name);
+                        }
+                    }
+                });
+            });
+
+            //ダミーユーザー移動
+            moveDummyUser();
+            setTimeout(getAreaUsers, 1000 * 3);
+        }
+
+
+        //ダミーユーザー
+        function setDummyUser() {
+            var name = genDummyUserName();
+            var id = getDummyUserId(name);
+            var r1 = (Math.random() - 0.5) * 0.004;
+            var r2 = (Math.random() - 0.5) * 0.004;
+            userDb.setUserData(id, {
+                uid: id,
+                name: name,
+                sex: "male",
+                lat: nowLat + r1,
+                lng: nowLng + r2,
+                dummy: true,
+            });
+        }
+
+        function moveDummyUser() {
+            for (let id in users) {
+                let user = users[id];
+                if (user.dummy) {
+                    var r1 = (Math.random() - 0.5) * 0.0003;
+                    var r2 = (Math.random() - 0.5) * 0.0003;
+                    user.lat += r1;
+                    user.lng += r2;
+                    userDb.setUserData(id, user);
+                }
+            }
+        }
+
+        function genDummyUserName() {
+            var dict = "あいうけおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよ";
+            var name = "";
+            for (let i = 0; i < 3; i++) {
+                name += dict.charAt(Math.floor(Math.random() * dict.length));
+            }
+            // console.log(name);
+            return name;
+        }
+
+        function getDummyUserId(name) {
+            var id = name; //+ (Math.floor(Math.random() * 1000000000000)).toString();
+            // console.log(id);
+            return id;
+        }
+
+        // 端末UID取得
+        function getUID(cb) {
+
+            new Fingerprint2().get((result) => {
+                cb(result);
+            })
+        
+        }
+
+        // ロード後に最初に走る処理
+        window.onload = async function() {
+            
+       
+            private.init();
+            // DB初期化
+            var config = configData.config;
+
+            firebase.initializeApp(config);
+            // Initialize Cloud Firestore through Firebase
+            userDb.init(); //db = firebase.firestore();
+
+            initMap();//initilize maps
+            navigator.geolocation.getCurrentPosition(function(position){
+                nowLat = position.coords.latitude;
+                nowLng = position.coords.longitude;
+                console.log(position)
+
+                goToCurrentPosition();    
+                markerSet(0, nowLat, nowLng, "");//update current position marks
+                showMarks();//refresh marks on the map
+            })
+
+            var watchID = navigator.geolocation.watchPosition(function(position) {
+                nowLat = position.coords.latitude;
+                nowLng = position.coords.longitude;
+                console.log("pos : " + nowLat + "," + nowLng);   
+     
+                // 自分の位置情報更新
+                //updateLocalPosition and marks
+                // 
+                // setMyInfo();
+                // console.log(users[0]);
+            });
+
+
+            // 端末UID取得
+            getUID(function(uid){
+                console.log(uid)
+                getMyInfo(uid);
+            });
+        
+            // console.log("Fingerprint: uid = " + uid);
+
+            //ユーザー情報を取得（取得できなければ、ユーザー登録）
+
+
+            //近辺のユーザー取得
+            // getAreaUsers();
+
+        }
+
+
+        function showRegisterForm(_uid){
+                swal({
+                title: 'ユーザー登録',
+                html:  '<div>名前:<input id="swal-name" class="swal2-input"></div>' +
+                       '<div class="swal2-radio">' +
+
+                            '<label>' +
+                                '<input type="radio" style="display:none" name="swal2-radio" value="female">' + 
+                                    '<span class="swal2-label">女性</span>' +
+                            '</label>' +
+
+                            '<label>' +
+                                '<input type="radio" name="swal2-radio" value="male">' + 
+                                    '<span class="swal2-label">男性</span>' +
+                            '</label>' +
+
+                        '</div>',
+                showCancelButton: true,
+                confirmButtonText: '登録',
+                showLoaderOnConfirm: true,
+                preConfirm: (login) => {
+
+                    swal_name = document.getElementById('swal-name').value;
+                    swal_radios = document.getElementsByName('swal2-radio');
+                    swal_sex = null;
+                    for(i=0;i<swal_radios.length;i++){
+                        if(swal_radios[i].checked){
+                            swal_sex = swal_radios[i].value
+                        }
+                    }
+                    
+                    userDb.setUserData(_uid,{name:swal_name,sex:swal_sex})
+                },
+                allowOutsideClick: () => !swal.isLoading()
+                })
+        }
+    </script>
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha256-3edrmyuQ0w65f8gfBsqowzjJe2iM6n0nKciPUp8y+7E=" crossorigin="anonymous" defer></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBQdVnFEapGR5pn0W3zapAFG1fiCfCixFQ" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fingerprintjs2/1.6.1/fingerprint2.min.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/4.12.1/firebase.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/4.12.1/firebase-firestore.js" defer></script>
+    <script src="/javascripts/config.js"></script>
+    <script src="/javascripts/userDb.js" defer></script>
+    <script src="/javascripts/sweetalert2.all.min.js" defer></script>
+    <link rel="stylesheet" href="/stylesheets/sweetalert2.min.css">
+</body>
+
+</html>
