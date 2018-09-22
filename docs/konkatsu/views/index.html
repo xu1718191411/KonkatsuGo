@@ -151,7 +151,6 @@
             if(map == null) return;
             if(nowLat == null) return;
             if(nowLng == null) return;
-            alert(1)
             map.setCenter(new google.maps.LatLng(nowLat,nowLng))
         }
 
@@ -431,7 +430,13 @@
                             swal_sex = swal_radios[i].value
                         }
                     }
-                    var position = new firebase.firestore.GeoPoint(nowLat,nowLng)
+                    var position;
+                    if(nowLat == undefined || nowLng == undefined){
+                        position = null
+                    }else{
+                        position = new firebase.firestore.GeoPoint(nowLat,nowLng)
+                    }
+
                     userDb.setUserData(_uid,{name:swal_name,sex:swal_sex,position:position},function(success){
                         showAlert("登録成功")
                     })
