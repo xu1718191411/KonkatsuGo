@@ -66,6 +66,41 @@ var userDb = {
             });
     },
 
+
+    // ユーザー情報アップデート
+    updateUserInfo: function (uid, data,cb) {
+        data.timestamp = new Date();
+        // console.log('setUserData :');
+        // console.log(uid);
+        // console.log(data);
+        this.db.collection(this.COLLECTION).doc(uid).update(data)
+            .then(function () {
+                console.log("Document successfully updated!");
+                cb(true)
+            })
+            .catch(function (error) {
+                console.error("Error updating document: ", error);
+                cb(false)
+            });
+    },
+
+    onMyComplimentListened:function(uid,cb){
+        this.db.collection(this.COLLECTIONCOMPLIMENT).where("target","==",uid).onSnapshot(function(querySnapshot) {
+
+            querySnapshot.forEach(function(doc) {
+                console.log(doc.data());
+                cb(doc.data())
+            });
+
+        });
+    },
+
+    onNewUserAdded:function(cb){
+        this.db.collection(this.COLLECTION).onSnapshot(function(querySnapshot){
+            cb(querySnapshot)
+        })
+    },
+
     // 範囲内のユーザー情報取得
     getAreaUsers: function (parm, cb) {
         this.db.collection(this.COLLECTION)
@@ -83,9 +118,6 @@ var userDb = {
                     if(error == null){
                         cb(true)
                         console.log("conguraduation!you have given a successful comliment")
-                    }else{
-                        
-                        console.log(error)
                     }
                 })
             }else{
@@ -125,10 +157,10 @@ var userDb = {
     },
 
     checkMatching:function(uid,target,cb){
-        userDb.checkComliment(uid,target,function(hasDoneTheCompliment){
-                if(hasDoneTheCompliment){
-                    userDb.checkComliment(target,uid,function(successMatched){
-                       cb(true)
+        userDb.checkComliment(uid,target,function(hasnotDoTheCompliment){
+                if(!hasnotDoTheCompliment){
+                    userDb.checkComliment(target,uid,function(hasnotDoTheCompliment){
+                        if(!hasnotDoTheCompliment) cb(true)
                     })
                 }
         })

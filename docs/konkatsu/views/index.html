@@ -77,6 +77,7 @@
         var db;
         var config;
         var infoWindow;
+        var deviceUid;
 
         // プライベートモード
         var private = {
@@ -189,7 +190,7 @@
             markers[id].name = name
             markers[id].id = id
 
-            if (id == 0) {
+            if (id == deviceUid) {
                 markers[id].setAnimation(google.maps.Animation.BOUNCE);
             }
 
@@ -214,20 +215,20 @@
 
                 google.maps.event.addListener(infoWindow,"domready",function(){
                     document.getElementById("giveCompliment").onclick = function(){
-                        doCompliment(marker.id);
+                        doCompliment(marker.id,marker.name);
                     }
                 })
             });
 
         }
 
-        function doCompliment(targetID){
+        function doCompliment(targetID,name){
 
             getUID(function(uid){
                 userDb.compliment(uid,targetID,function(success){
                     if(success){
-                        matchingSuccessfully()
-                        userDb.checkMatching(function(matchingSuccess){
+                        showAlert(name+"さんにいいねをつけました^^");
+                        userDb.checkMatching(uid,targetID,function(matchingSuccess){
                                 if(matchingSuccess){
                                     matchingSuccessfully();
                                 }
@@ -262,18 +263,27 @@
             });
         }
 
+        function updateUserInfo(uid,data){
+            userDb.updateUserInfo(uid,data,function(success){
+                if(success){
+                    console.log("update location with success")
+                }else{
+                    console.log("update location without success")
+                }
+            })
+        }
 
         // 近辺のユーザー情報取得、マーカー設置
         function getAreaUsers() {
         
-            getUID(function(uid){
+            
                 userDb.getAreaUsers({}, function(list) {
                     console.log("getAreaUsers");
                     list.forEach(function(doc) {
                         if(doc.exists){
                             var data = doc.data()
 
-                            if(doc.id != uid){
+                            if(doc.id != deviceUid){
                                 
                                 if(data.position != undefined && data.position != null){
                                     if(!isNaN(data.position.latitude) && !isNaN(data.position.longitude)){
@@ -288,8 +298,29 @@
 
                     showMarks();
                 });
-            })
+            
 
+        }
+
+        function receiveAreaUsers(list){
+            list.forEach(function(doc) {
+                        if(doc.exists){
+                            var data = doc.data()
+
+                            if(doc.id != deviceUid){
+                                
+                                if(data.position != undefined && data.position != null){
+                                    if(!isNaN(data.position.latitude) && !isNaN(data.position.longitude)){
+                                        markerSet(doc.id,data.position.latitude,data.position.longitude,data.name)
+                                    }
+                                }
+   
+                            }
+                        }
+
+                    });
+
+                    showMarks();
         }
 
 
@@ -361,14 +392,22 @@
 
             initMap();//initilize maps
             navigator.geolocation.getCurrentPosition(function(position){
-                alert(1)
                 nowLat = position.coords.latitude;
                 nowLng = position.coords.longitude;
                 console.log(position)
 
-                goToCurrentPosition();    
-                markerSet(0, nowLat, nowLng, "");//update current position marks
-                showMarks();//refresh marks on the map
+                goToCurrentPosition(); 
+                
+                // 端末UID取得
+                getUID(function(uid){
+                    deviceUid = uid;
+                    markerSet(uid, nowLat, nowLng, "あなた");//update current position marks
+                    position = new firebase.firestore.GeoPoint(nowLat,nowLng)
+                    updateUserInfo(uid,{position:position})
+                    showMarks();//refresh marks on the map
+                });
+
+
             })
 
             var watchID = navigator.geolocation.watchPosition(function(position) {
@@ -386,8 +425,21 @@
 
             // 端末UID取得
             getUID(function(uid){
-                console.log(uid)
+                deviceUid = uid;
                 getMyInfo(uid);
+                //近辺のユーザー取得
+                // setInterval(function(){
+                //     getAreaUsers();
+                // },3000)
+
+                userDb.onNewUserAdded(function(results){
+                    console.log(results)
+                    receiveAreaUsers(results)
+                })
+
+                userDb.onMyComplimentListened(uid,function(res){
+                        showAlert(res.uid+"からいいねを付けられました")
+                })
             });
         
             // console.log("Fingerprint: uid = " + uid);
@@ -395,8 +447,6 @@
             //ユーザー情報を取得（取得できなければ、ユーザー登録）
 
 
-            //近辺のユーザー取得
-            getAreaUsers();
         }
 
 
