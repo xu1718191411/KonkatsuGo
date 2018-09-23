@@ -87,11 +87,12 @@ var userDb = {
     onMyComplimentListened:function(uid,cb){
         this.db.collection(this.COLLECTIONCOMPLIMENT).where("target","==",uid).onSnapshot(function(querySnapshot) {
 
+            var resultArr = []
             querySnapshot.forEach(function(doc) {
                 console.log(doc.data());
-                cb(doc.data())
+                resultArr.push(doc.data())
             });
-
+            cb(resultArr)
         });
     },
 
@@ -110,11 +111,11 @@ var userDb = {
             });
     },
 
-    compliment:function(uid,target,cb){
+    compliment:function(uid,target,fromName,targetName,cb){
 
         userDb.checkComliment(uid,target,function(shouldDoTheCompliment){
             if(shouldDoTheCompliment){
-                userDb.doComliment(uid,target,function(error){
+                userDb.doComliment(uid,target,fromName,targetName,function(error){
                     if(error == null){
                         cb(true)
                         console.log("conguraduation!you have given a successful comliment")
@@ -143,10 +144,12 @@ var userDb = {
         })
     },
 
-    doComliment:function(uid,target,cb){
+    doComliment:function(uid,target,fromName,targetName,cb){
         this.db.collection(this.COLLECTIONCOMPLIMENT).add({
             uid:uid,
-            target:target
+            target:target,
+            fromName:fromName,
+            targetName:targetName
         }).then(function(){
             console.log("doComliment"+"success")
             cb(null)
