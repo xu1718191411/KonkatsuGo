@@ -67,6 +67,11 @@
             background-color: rgb(243, 150, 150);
             border-radius: 6px;
         }
+
+        #warning{
+            color:orangered;
+            text-align: center;
+        }
     </style>
 </head>
 
@@ -532,7 +537,8 @@
                                 '<span class="swal2-label">男性</span>' +
                         '</label>' +
 
-                    '</div>',
+                    '</div>' +
+                    '<div id="warning"></div>',
             showCancelButton: true,
             confirmButtonText: '登録',
             showLoaderOnConfirm: true,
@@ -553,13 +559,44 @@
                     position = new firebase.firestore.GeoPoint(nowLat,nowLng)
                 }
 
+
+            
+                if(swal_name.length == 0){
+                    document.getElementById("warning").innerText = "名前を入力してください"
+                    return false;
+                }
+
+
+                if(swal_sex == null){
+                    document.getElementById("warning").innerText = "性別を入力してください"
+                    return false;
+                }
+
+
                 userDb.setUserData(_uid,{name:swal_name,sex:swal_sex,position:position},function(success){
                     showAlert("登録成功")
                     getMyInfo(_uid);
                 })
+                
+
+
+
             },
             allowOutsideClick: () => !swal.isLoading()
+            }).then((result) => {
+                // if(result){
+                //     userDb.setUserData(_uid,result,function(success){
+                //     showAlert("登録成功")
+                //     getMyInfo(_uid);
+                // })
+                // }
+
             })
+
+
+
+
+
     }
 
     function matchingSuccessfully(){

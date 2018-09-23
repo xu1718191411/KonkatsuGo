@@ -95,7 +95,6 @@
 </body>
 
 
-
 <script>
         var map;
         var nowLat, nowLng;
@@ -536,7 +535,8 @@
                                     '<span class="swal2-label">男性</span>' +
                             '</label>' +
     
-                        '</div>',
+                        '</div>' +
+                        '<div id="warning"></div>',
                 showCancelButton: true,
                 confirmButtonText: '登録',
                 showLoaderOnConfirm: true,
@@ -557,13 +557,44 @@
                         position = new firebase.firestore.GeoPoint(nowLat,nowLng)
                     }
     
+    
+                
+                    if(swal_name.length == 0){
+                        document.getElementById("warning").innerText = "名前を入力してください"
+                        return false;
+                    }
+    
+    
+                    if(swal_sex == null){
+                        document.getElementById("warning").innerText = "性別を入力してください"
+                        return false;
+                    }
+    
+    
                     userDb.setUserData(_uid,{name:swal_name,sex:swal_sex,position:position},function(success){
                         showAlert("登録成功")
                         getMyInfo(_uid);
                     })
+                    
+    
+    
+    
                 },
                 allowOutsideClick: () => !swal.isLoading()
+                }).then((result) => {
+                    // if(result){
+                    //     userDb.setUserData(_uid,result,function(success){
+                    //     showAlert("登録成功")
+                    //     getMyInfo(_uid);
+                    // })
+                    // }
+    
                 })
+    
+    
+    
+    
+    
         }
     
         function matchingSuccessfully(){
@@ -586,7 +617,7 @@
     
     </script>
 
-    
+
     <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha256-3edrmyuQ0w65f8gfBsqowzjJe2iM6n0nKciPUp8y+7E=" crossorigin="anonymous" defer></script>
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBQdVnFEapGR5pn0W3zapAFG1fiCfCixFQ" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fingerprintjs2/1.6.1/fingerprint2.min.js" defer></script>
