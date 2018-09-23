@@ -555,6 +555,7 @@
 
                 userDb.setUserData(_uid,{name:swal_name,sex:swal_sex,position:position},function(success){
                     showAlert("登録成功")
+                    getMyInfo(_uid);
                 })
             },
             allowOutsideClick: () => !swal.isLoading()

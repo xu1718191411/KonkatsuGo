@@ -113,6 +113,7 @@ var userDb = {
 
     compliment:function(uid,target,fromName,targetName,cb){
 
+
         userDb.checkComliment(uid,target,function(shouldDoTheCompliment){
             if(shouldDoTheCompliment){
                 userDb.doComliment(uid,target,fromName,targetName,function(error){
