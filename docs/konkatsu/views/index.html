@@ -6,6 +6,17 @@
     <meta name="viewport" content="initial-scale=1.0">
     <meta charset="utf-8">
     <script src="/javascripts/vue.min.js"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBQdVnFEapGR5pn0W3zapAFG1fiCfCixFQ"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fingerprintjs2/1.6.1/fingerprint2.min.js"></script>
+    <!-- <script src="https://www.gstatic.com/firebasejs/4.12.1/firebase.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/4.12.1/firebase-firestore.js"></script> -->
+    <script src="https://www.gstatic.com/firebasejs/5.3.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/5.3.0/firebase-firestore.js"></script>
+    <script src="/javascripts/config.js"></script>
+    <script src="/javascripts/userDb.js"></script>
+    <script src="/javascripts/sweetalert2.all.min.js"></script>
+
+    <link rel="stylesheet" href="/stylesheets/sweetalert2.min.css">
     <style>
         /* Always set the map height explicitly to define the size of the div
        * element that contains the map. */
@@ -56,20 +67,20 @@
             padding: 8px 5px;
             font-size: 12px;
         }
-
-        .toolbar>.list{
+        
+        .toolbar>.list {
             text-align: left;
-            width:100%;
+            width: 100%;
             margin-top: 4px;
-            margin-left:2px;
+            margin-left: 2px;
             padding: 8px 5px;
             font-size: 16px;
             background-color: rgb(243, 150, 150);
             border-radius: 6px;
         }
-
-        #warning{
-            color:orangered;
+        
+        #warning {
+            color: orangered;
             text-align: center;
         }
     </style>
@@ -89,13 +100,43 @@
 
         <div class="toolbar">
             <div class="list" v-for="(item, index) in items">
-            {{item.fromName}}さんはあなたにいいねをつけました！
-            <span v-if="item.success == 1">マッチング成功!</span>
+                {{item.fromName}}さんはあなたにいいねをつけました！
+                <span v-if="item.success == 1">マッチング成功!</span>
             </div>
         </div>
-        
+
     </div>
 </body>
+
+<script>
+    //var config = configData.config;
+    var config = {
+        apiKey: 'AIzaSyBId_rgRqnyKqDB7qXLcTcH0c0uS7Ai-VY',
+        databaseURL: 'https://lunchambition-1504446899161.firebaseio.com',
+        projectId: 'lunchambition-1504446899161'
+    };
+    firebase.initializeApp(config);
+    // Initialize Cloud Firestore through Firebase
+
+
+    const firestore = firebase.firestore();
+
+    const settings = {
+        timestampsInSnapshots: true
+    };
+    firestore.settings(settings);
+
+    userDb.init(); //db = firebase.firestore();
+</script>
+
+
+<!-- GeoFirestore -->
+<script src="https://unpkg.com/geofirestore@2.0.2/dist/geofirestore.js"></script>
+
+<!-- Geokit -->
+<script src="https://unpkg.com/geokit@0.1.2/dist/geokit.js"></script>
+
+<script src="/javascripts/viewers.js"></script>
 
 <script>
     var map;
@@ -116,6 +157,9 @@
             ]
         }
     })
+
+
+
 
     // プライベートモード
     var private = {
@@ -148,57 +192,61 @@
 
     function initMap() {
         map = new google.maps.Map(document.getElementById('map'), {
-            center: new google.maps.LatLng(35.6314665,139.8822901),
+            center: new google.maps.LatLng(35.6314665, 139.8822901),
             zoom: 17
         });
 
-        google.maps.event.addListener(map,"click",function(event){
+        google.maps.event.addListener(map, "click", function(event) {
             var uid = generateID(32)
             var lat = event.latLng.lat()
             var lng = event.latLng.lng()
             var name = generateName(5)
-            var position = new firebase.firestore.GeoPoint(lat,lng)
-            //save data
-            userDb.setUserData(uid,{name:name,sex:"female",position:position},function(success){
+            var position = new firebase.firestore.GeoPoint(lat, lng)
+                //save data
+            userDb.setUserData(uid, {
+                name: name,
+                sex: "female",
+                position: position
+            }, function(success) {
                 console.log("登録成功")
             })
-            markerSet(uid,lat,lng,name);
+            markerSet(uid, lat, lng, name);
             showMarks();
         })
     }
 
-    function generateID(length){
+    function generateID(length) {
         var chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXTZabcdefghiklmnopqrstuvwxyz'.split('');
         var str = "";
-        for(i=0;i<length;i++){
-            str += chars[Math.round(Math.random()*length)]
+        for (i = 0; i < length; i++) {
+            str += chars[Math.round(Math.random() * length)]
         }
         return str;
     }
 
-    function generateName(length){
+    function generateName(length) {
         var chars = 'abcdefghiklmnopqrstuvwxyz'.split('');
         var str = "";
-        for(i=0;i<length;i++){
-            str += chars[Math.round(Math.random()*length)]
+        for (i = 0; i < length; i++) {
+            str += chars[Math.round(Math.random() * length)]
         }
         console.log(str)
         return str;
     }
 
-    function goToCurrentPosition(n){
-        if(map == null) return;
-        if(nowLat == null) return;
-        if(nowLng == null) return;
-        map.setCenter(new google.maps.LatLng(nowLat,nowLng))
+    function goToCurrentPosition(n) {
+        if (map == null) return;
+        if (nowLat == null) return;
+        if (nowLng == null) return;
+        map.setCenter(new google.maps.LatLng(nowLat, nowLng))
     }
 
-    function goToACertainPosition(pos){
+    function goToACertainPosition(pos) {
         map.setCenter(pos)
     }
 
     //show all of the marks on the map
-    function showMarks(){
+    function showMarks() {
         console.log(markers.length)
         for (let marker of markers) {
             if (marker) {
@@ -206,7 +254,7 @@
             }
         }
     }
-    
+
     //construct marks data
     function markerSet(id, lat, lng, name) {
 
@@ -237,45 +285,45 @@
         }
 
         markerInfo(markers[id])
-        // console.log(markers[id]);
+            // console.log(markers[id]);
 
     }
 
     function markerInfo(marker) {
-        
+
         //add balloon popup listener
-        google.maps.event.addListener(marker, 'click', function (event) {
+        google.maps.event.addListener(marker, 'click', function(event) {
             console.log(marker)
-            if(infoWindow != null){
+            if (infoWindow != null) {
                 infoWindow.close()
             }
             infoWindow = new google.maps.InfoWindow({
-                content: '<h2>'+marker.name+'</h2><button id="giveCompliment">いいね</button>'
+                content: '<h2>' + marker.name + '</h2><button id="giveCompliment">いいね</button>'
             })
 
             infoWindow.open(marker.getMap(), marker);
 
-            google.maps.event.addListener(infoWindow,"domready",function(){
-                document.getElementById("giveCompliment").onclick = function(){
-                    doCompliment(marker.id,marker.name);
+            google.maps.event.addListener(infoWindow, "domready", function() {
+                document.getElementById("giveCompliment").onclick = function() {
+                    doCompliment(marker.id, marker.name);
                 }
             })
         });
 
     }
 
-    function doCompliment(targetID,name){
+    function doCompliment(targetID, name) {
 
-        getUID(function(uid){
-            userDb.compliment(uid,targetID,users[0].name,name,function(success){
-                if(success){
-                    showAlert(name+"さんにいいねをつけました^^");
-                    userDb.checkMatching(uid,targetID,function(matchingSuccess){
-                            if(matchingSuccess){
-                                matchingSuccessfully();
-                            }
+        getUID(function(uid) {
+            userDb.compliment(uid, targetID, users[0].name, name, function(success) {
+                if (success) {
+                    showAlert(name + "さんにいいねをつけました^^");
+                    userDb.checkMatching(uid, targetID, function(matchingSuccess) {
+                        if (matchingSuccess) {
+                            matchingSuccessfully();
+                        }
                     });
-                }else{
+                } else {
                     alreadyDoneTheCompliment();
                 }
             })
@@ -286,24 +334,23 @@
     // 自分の情報取得（取得できなければ、ユーザー登録）
     function getMyInfo(_uid) {
         users[0] = {};
-        userDb.getUserData(_uid,function(doc){
-            console.log("ggss")
-        if (doc.exists) {
-            console.log("Document data:", doc);
-            console.log(doc.data())
-            users[0] = doc.data();
-        } else {
-            console.log("No such document!");
-            showRegisterForm(_uid);
-        }
+        userDb.getUserData(_uid, function(doc) {
+            if (doc.exists) {
+                console.log("Document data:", doc);
+                console.log(doc.data())
+                users[0] = doc.data();
+            } else {
+                console.log("No such document!");
+                showRegisterForm(_uid);
+            }
         });
     }
 
-    function updateUserInfo(uid,data){
-        userDb.updateUserInfo(uid,data,function(success){
-            if(success){
+    function updateUserInfo(uid, data) {
+        userDb.updateUserInfo(uid, data, function(success) {
+            if (success) {
                 console.log("update location with success")
-            }else{
+            } else {
                 console.log("update location without success")
             }
         })
@@ -311,60 +358,60 @@
 
     // 近辺のユーザー情報取得、マーカー設置
     function getAreaUsers() {
-    
-        
-            userDb.getAreaUsers({}, function(list) {
-                console.log("getAreaUsers");
-                list.forEach(function(doc) {
-                    if(doc.exists){
-                        var data = doc.data()
 
-                        if(doc.id == deviceUid){
-                            console.log("kkkkkk")
-                            console.log(doc.data())
-                            if(data.position != undefined && data.position != null){
-                                if(!isNaN(data.position.latitude) && !isNaN(data.position.longitude)){
-                                    goToACertainPosition(new google.maps.LatLng(data.position.latitude,data.position.longitude));
-                                }
+
+        userDb.getAreaUsers({}, function(list) {
+            console.log("getAreaUsers");
+            list.forEach(function(doc) {
+                if (doc.exists) {
+                    var data = doc.data()
+
+                    if (doc.id == deviceUid) {
+                        console.log("kkkkkk")
+                        console.log(doc.data())
+                        if (data.position != undefined && data.position != null) {
+                            if (!isNaN(data.position.latitude) && !isNaN(data.position.longitude)) {
+                                goToACertainPosition(new google.maps.LatLng(data.position.latitude, data.position.longitude));
                             }
-
                         }
-                            if(data.position != undefined && data.position != null){
-                                if(!isNaN(data.position.latitude) && !isNaN(data.position.longitude)){
-                                    markerSet(doc.id,data.position.latitude,data.position.longitude,data.name)
-                                }
-                            }
 
-                
+                    }
+                    if (data.position != undefined && data.position != null) {
+                        if (!isNaN(data.position.latitude) && !isNaN(data.position.longitude)) {
+                            markerSet(doc.id, data.position.latitude, data.position.longitude, data.name)
+                        }
                     }
 
-                });
 
-                showMarks();
+                }
+
             });
-        
+
+            showMarks();
+        });
+
 
     }
 
-    function receiveAreaUsers(list){
+    function receiveAreaUsers(list) {
         list.forEach(function(doc) {
-                    if(doc.exists){
-                        var data = doc.data()
+            if (doc.exists) {
+                var data = doc.data()
 
-                        if(doc.id != deviceUid){
-                            
-                            if(data.position != undefined && data.position != null){
-                                if(!isNaN(data.position.latitude) && !isNaN(data.position.longitude)){
-                                    markerSet(doc.id,data.position.latitude,data.position.longitude,data.name)
-                                }
-                            }
+                if (doc.id != deviceUid) {
 
+                    if (data.position != undefined && data.position != null) {
+                        if (!isNaN(data.position.latitude) && !isNaN(data.position.longitude)) {
+                            markerSet(doc.id, data.position.latitude, data.position.longitude, data.name)
                         }
                     }
 
-                });
+                }
+            }
 
-                showMarks();
+        });
+
+        showMarks();
     }
 
 
@@ -415,49 +462,51 @@
 
     // 端末UID取得
     function getUID(cb) {
-        
         new Fingerprint2().get((result) => {
             cb(result)
         })
-    
     }
 
     // ロード後に最初に走る処理
     window.onload = async function() {
-        
-    
         private.init();
         // DB初期化
-        var config = configData.config;
+        queryFirestore({
+            lat: 35.158878699999995,
+            lng: 136.89314629999998
+        })
 
-        firebase.initializeApp(config);
-        // Initialize Cloud Firestore through Firebase
-        userDb.init(); //db = firebase.firestore();
-
-        initMap();//initilize maps
-        navigator.geolocation.getCurrentPosition(function(position){
+        initMap(); //initilize maps
+        navigator.geolocation.getCurrentPosition(function(position) {
             console.log("successfully get current location")
             nowLat = position.coords.latitude;
             nowLng = position.coords.longitude;
+
+            // queryFirestore({
+            //     lat: nowLat,
+            //     lng: nowLat
+            // });
             console.log(position)
 
-            goToCurrentPosition(); 
-            
+            goToCurrentPosition();
+
             // 端末UID取得
-            getUID(function(uid){
+            getUID(function(uid) {
                 deviceUid = uid;
-                markerSet(uid, nowLat, nowLng, "あなた");//update current position marks
-                position = new firebase.firestore.GeoPoint(nowLat,nowLng)
-                updateUserInfo(uid,{position:position})
-                showMarks();//refresh marks on the map
+                markerSet(uid, nowLat, nowLng, "あなた"); //update current position marks
+                position = new firebase.firestore.GeoPoint(nowLat, nowLng)
+                updateUserInfo(uid, {
+                    position: position
+                })
+                showMarks(); //refresh marks on the map
             });
         })
 
         var watchID = navigator.geolocation.watchPosition(function(position) {
             nowLat = position.coords.latitude;
             nowLng = position.coords.longitude;
-            console.log("pos : " + nowLat + "," + nowLng);   
-    
+            console.log("pos : " + nowLat + "," + nowLng);
+
             // 自分の位置情報更新
             //updateLocalPosition and marks
             // 
@@ -467,7 +516,7 @@
 
 
         // 端末UID取得
-        getUID(function(uid){
+        getUID(function(uid) {
             deviceUid = uid;
             getMyInfo(uid);
             //近辺のユーザー取得
@@ -475,43 +524,38 @@
             //     getAreaUsers();
             // },3000)
 
-            userDb.onNewUserAdded(function(results){
+            userDb.onNewUserAdded(function(results) {
                 console.log(results)
                 receiveAreaUsers(results)
             })
 
-            userDb.onMyComplimentListened(uid,function(res){
+            userDb.onMyComplimentListened(uid, function(res) {
+                app.items = res;
+
+                for (var i = 0; i < res.length; i++) {
+
+                    (function(_i) {
 
 
 
-                    console.log("111111")
-                    console.log(res)
-                    app.items = res;
-
-                    for(var i=0;i<res.length;i++){
-
-                        (function(_i){
+                        showAlert(res[_i].fromName + "からいいねを付けられました")
 
 
+                        userDb.checkMatching(deviceUid, res[_i].uid, function(matchingSuccess) {
+                            if (matchingSuccess) {
+                                res[_i].success = 1
+                                app.items = []
+                                app.items = res
+                                matchingSuccessfully();
+                            }
+                        })
+                    })(i)
 
-                                showAlert(res[_i].fromName+"からいいねを付けられました")
-                                
-
-                                userDb.checkMatching(deviceUid,res[_i].uid,function(matchingSuccess){
-                                    if(matchingSuccess){
-                                            res[_i].success = 1
-                                            app.items = []
-                                            app.items = res
-                                            matchingSuccessfully();
-                                    }
-                                })
-                        })(i)
-
-                    }
+                }
 
             })
         });
-    
+
         // console.log("Fingerprint: uid = " + uid);
 
         //ユーザー情報を取得（取得できなければ、ユーザー登録）
@@ -521,24 +565,24 @@
     }
 
 
-    function showRegisterForm(_uid){
-            swal({
+    function showRegisterForm(_uid) {
+        swal({
             title: 'ユーザー登録',
-            html:  '<div>名前:<input id="swal-name" class="swal2-input"></div>' +
-                    '<div class="swal2-radio">' +
+            html: '<div>名前:<input id="swal-name" class="swal2-input"></div>' +
+                '<div class="swal2-radio">' +
 
-                        '<label>' +
-                            '<input type="radio" style="display:none" name="swal2-radio" value="female">' + 
-                                '<span class="swal2-label">女性</span>' +
-                        '</label>' +
+                '<label>' +
+                '<input type="radio" style="display:none" name="swal2-radio" value="female">' +
+                '<span class="swal2-label">女性</span>' +
+                '</label>' +
 
-                        '<label>' +
-                            '<input type="radio" name="swal2-radio" value="male">' + 
-                                '<span class="swal2-label">男性</span>' +
-                        '</label>' +
+                '<label>' +
+                '<input type="radio" name="swal2-radio" value="male">' +
+                '<span class="swal2-label">男性</span>' +
+                '</label>' +
 
-                    '</div>' +
-                    '<div id="warning"></div>',
+                '</div>' +
+                '<div id="warning"></div>',
             showCancelButton: true,
             confirmButtonText: '登録',
             showLoaderOnConfirm: true,
@@ -547,51 +591,55 @@
                 swal_name = document.getElementById('swal-name').value;
                 swal_radios = document.getElementsByName('swal2-radio');
                 swal_sex = null;
-                for(i=0;i<swal_radios.length;i++){
-                    if(swal_radios[i].checked){
+                for (i = 0; i < swal_radios.length; i++) {
+                    if (swal_radios[i].checked) {
                         swal_sex = swal_radios[i].value
                     }
                 }
                 var position;
-                if(nowLat == undefined || nowLng == undefined){
+                if (nowLat == undefined || nowLng == undefined) {
                     position = null
-                }else{
-                    position = new firebase.firestore.GeoPoint(nowLat,nowLng)
+                } else {
+                    position = new firebase.firestore.GeoPoint(nowLat, nowLng)
                 }
 
 
-            
-                if(swal_name.length == 0){
+
+                if (swal_name.length == 0) {
                     document.getElementById("warning").innerText = "名前を入力してください"
                     return false;
                 }
 
 
-                if(swal_sex == null){
+                if (swal_sex == null) {
                     document.getElementById("warning").innerText = "性別を入力してください"
                     return false;
                 }
 
 
-                userDb.setUserData(_uid,{name:swal_name,sex:swal_sex,position:position},function(success){
+                userDb.setUserData(_uid, {
+                    name: swal_name,
+                    sex: swal_sex,
+                    position: position
+                }, function(success) {
                     showAlert("登録成功")
                     getMyInfo(_uid);
                 })
-                
+
 
 
 
             },
             allowOutsideClick: () => !swal.isLoading()
-            }).then((result) => {
-                // if(result){
-                //     userDb.setUserData(_uid,result,function(success){
-                //     showAlert("登録成功")
-                //     getMyInfo(_uid);
-                // })
-                // }
+        }).then((result) => {
+            // if(result){
+            //     userDb.setUserData(_uid,result,function(success){
+            //     showAlert("登録成功")
+            //     getMyInfo(_uid);
+            // })
+            // }
 
-            })
+        })
 
 
 
@@ -599,32 +647,24 @@
 
     }
 
-    function matchingSuccessfully(){
+    function matchingSuccessfully() {
         swal(
             'マッチング成功',
             'おめでとうございます',
         )
     }
 
-    function alreadyDoneTheCompliment(){
+    function alreadyDoneTheCompliment() {
         showAlert("いいねもう付けましたよ");
     }
 
-    function showAlert(str){
-        swal({"text":str,"background":"opacity: 1"})
+    function showAlert(str) {
+        swal({
+            "text": str,
+            "background": "opacity: 1"
+        })
     }
-
-
-
-
 </script>
-<!-- <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha256-3edrmyuQ0w65f8gfBsqowzjJe2iM6n0nKciPUp8y+7E=" crossorigin="anonymous" defer></script> -->
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBQdVnFEapGR5pn0W3zapAFG1fiCfCixFQ" defer></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/fingerprintjs2/1.6.1/fingerprint2.min.js" defer></script>
-<script src="https://www.gstatic.com/firebasejs/4.12.1/firebase.js" defer></script>
-<script src="https://www.gstatic.com/firebasejs/4.12.1/firebase-firestore.js" defer></script>
-<script src="/javascripts/config.js"></script>
-<script src="/javascripts/userDb.js" defer></script>
-<script src="/javascripts/sweetalert2.all.min.js" defer></script>
-<link rel="stylesheet" href="/stylesheets/sweetalert2.min.css">
+
+
 </html>

@@ -2,8 +2,9 @@
 
 var userDb = {
     COLLECTION: "users",
-    COLLECTIONCOMPLIMENT:"compliment",
+    COLLECTIONCOMPLIMENT: "compliment",
     db: null,
+    geoFireOfUsers: null,
 
     test_users: [{
             uid: 1,
@@ -37,30 +38,44 @@ var userDb = {
 
 
     // 初期化
-    init: function () {
+    init: function() {
         this.db = firebase.firestore();
-        usersRef = this.db.collection("users");
+        // usersRef = this.db.collection("users");
     },
 
     // 特定UIDのユーザー情報取得
-    getUserData: function (uid,cb) {
-        this.db.collection(this.COLLECTION).doc(uid).get().then(function(res){
+    getUserData: function(uid, cb) {
+        this.db.collection(this.COLLECTION).doc(uid).get().then(function(res) {
             cb(res)
         })
     },
 
     // ユーザー情報セット
-    setUserData: function (uid, data,cb) {
+    setUserData: function(uid, data, cb) {
         data.timestamp = new Date();
-        // console.log('setUserData :');
-        // console.log(uid);
-        // console.log(data);
-        this.db.collection(this.COLLECTION).doc(uid).set(data)
-            .then(function () {
-                console.log("Document successfully written!");
+        //latitude
+        //longitude
+
+        var tempPosition = data.position;
+        var location = {}
+        var hash;
+        if (tempPosition != null && tempPosition != undefined) {
+            console.log("ggggggggggggg")
+            console.log(tempPosition)
+            location.lat = Number(tempPosition.latitude.toFixed(10));
+            location.lng = Number(tempPosition.longitude.toFixed(10));
+            hash = geokit.Geokit.hash(location);
+        } else {
+            return;
+        }
+
+
+        this.db.collection(this.COLLECTION).doc(hash).set(data)
+            .then(function() {
+                console.log("Document successfully written!" + hash);
                 cb(true)
             })
-            .catch(function (error) {
+            .catch(function(error) {
                 console.error("Error writing document: ", error);
                 cb(false)
             });
@@ -68,24 +83,21 @@ var userDb = {
 
 
     // ユーザー情報アップデート
-    updateUserInfo: function (uid, data,cb) {
+    updateUserInfo: function(uid, data, cb) {
         data.timestamp = new Date();
-        // console.log('setUserData :');
-        // console.log(uid);
-        // console.log(data);
         this.db.collection(this.COLLECTION).doc(uid).update(data)
-            .then(function () {
+            .then(function() {
                 console.log("Document successfully updated!");
                 cb(true)
             })
-            .catch(function (error) {
+            .catch(function(error) {
                 console.error("Error updating document: ", error);
                 cb(false)
             });
     },
 
-    onMyComplimentListened:function(uid,cb){
-        this.db.collection(this.COLLECTIONCOMPLIMENT).where("target","==",uid).onSnapshot(function(querySnapshot) {
+    onMyComplimentListened: function(uid, cb) {
+        this.db.collection(this.COLLECTIONCOMPLIMENT).where("target", "==", uid).onSnapshot(function(querySnapshot) {
 
             var resultArr = []
             querySnapshot.forEach(function(doc) {
@@ -96,77 +108,80 @@ var userDb = {
         });
     },
 
-    onNewUserAdded:function(cb){
-        this.db.collection(this.COLLECTION).onSnapshot(function(querySnapshot){
+    onNewUserAdded: function(cb) {
+        this.db.collection(this.COLLECTION).onSnapshot(function(querySnapshot) {
             cb(querySnapshot)
         })
     },
 
     // 範囲内のユーザー情報取得
-    getAreaUsers: function (parm, cb) {
+    getAreaUsers: function(parm, cb) {
         this.db.collection(this.COLLECTION)
             .get()
-            .then(function (querySnapshot) {
+            .then(function(querySnapshot) {
                 cb(querySnapshot);
             });
     },
 
-    compliment:function(uid,target,fromName,targetName,cb){
+    compliment: function(uid, target, fromName, targetName, cb) {
 
 
-        userDb.checkComliment(uid,target,function(shouldDoTheCompliment){
-            if(shouldDoTheCompliment){
-                userDb.doComliment(uid,target,fromName,targetName,function(error){
-                    if(error == null){
+        userDb.checkComliment(uid, target, function(shouldDoTheCompliment) {
+            if (shouldDoTheCompliment) {
+                userDb.doComliment(uid, target, fromName, targetName, function(error) {
+                    if (error == null) {
                         cb(true)
                         console.log("conguraduation!you have given a successful comliment")
                     }
                 })
-            }else{
+            } else {
                 cb(false)
             }
         })
     },
 
-    checkComliment:function(uid,target,cb){
-        this.db.collection(this.COLLECTIONCOMPLIMENT).where("uid","==",uid).where("target","==",target).get().then(function(querySnapshot){
+    checkComliment: function(uid, target, cb) {
+        this.db.collection(this.COLLECTIONCOMPLIMENT).where("uid", "==", uid).where("target", "==", target).get().then(function(querySnapshot) {
 
-            if(!querySnapshot.empty){
+            if (!querySnapshot.empty) {
                 cb(false)
                 console.log("checkComliment:not empty")
-            }else{
+            } else {
                 cb(true)
                 console.log("checkComliment:empty")
-                //not yet give a comliment
+                    //not yet give a comliment
             }
-        }).catch(function(error){
+        }).catch(function(error) {
             cb(false)
             console.log("checkComliment:error")
         })
     },
 
-    doComliment:function(uid,target,fromName,targetName,cb){
+    doComliment: function(uid, target, fromName, targetName, cb) {
         this.db.collection(this.COLLECTIONCOMPLIMENT).add({
-            uid:uid,
-            target:target,
-            fromName:fromName,
-            targetName:targetName
-        }).then(function(){
-            console.log("doComliment"+"success")
+            uid: uid,
+            target: target,
+            fromName: fromName,
+            targetName: targetName
+        }).then(function() {
+            console.log("doComliment" + "success")
             cb(null)
-        }).catch(function(error){
-            console.log("doComliment"+"failure")
+        }).catch(function(error) {
+            console.log("doComliment" + "failure")
             cb(error)
         })
     },
 
-    checkMatching:function(uid,target,cb){
-        userDb.checkComliment(uid,target,function(hasnotDoTheCompliment){
-                if(!hasnotDoTheCompliment){
-                    userDb.checkComliment(target,uid,function(hasnotDoTheCompliment){
-                        if(!hasnotDoTheCompliment) cb(true)
-                    })
-                }
+    checkMatching: function(uid, target, cb) {
+        userDb.checkComliment(uid, target, function(hasnotDoTheCompliment) {
+            if (!hasnotDoTheCompliment) {
+                userDb.checkComliment(target, uid, function(hasnotDoTheCompliment) {
+                    if (!hasnotDoTheCompliment) cb(true)
+                })
+            }
         })
-    }
+    },
+
+
+
 }
