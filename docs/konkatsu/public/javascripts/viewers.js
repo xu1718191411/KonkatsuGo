@@ -2,7 +2,7 @@
 let geoQuery;
 const collectionRef = firestore.collection('viewers');
 const geoFirestore = new GeoFirestore(collectionRef);
-const radius = 4;
+const radius = 5;
 
 
 

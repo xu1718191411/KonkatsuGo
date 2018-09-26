@@ -14,6 +14,7 @@
     <script src="https://www.gstatic.com/firebasejs/5.3.0/firebase-firestore.js"></script>
     <script src="/javascripts/config.js"></script>
     <script src="/javascripts/userDb.js"></script>
+    <script src="/javascripts/geolib.js"></script>
     <script src="/javascripts/sweetalert2.all.min.js"></script>
 
     <link rel="stylesheet" href="/stylesheets/sweetalert2.min.css">
@@ -127,6 +128,8 @@
     firestore.settings(settings);
 
     userDb.init(); //db = firebase.firestore();
+
+    var distanceForQuery = 100;
 </script>
 
 
@@ -357,18 +360,16 @@
     }
 
     // 近辺のユーザー情報取得、マーカー設置
-    function getAreaUsers() {
+    //search nearby users
+    function getAreaUsers(lessPoint,greaterPoint) {
 
-
-        userDb.getAreaUsers({}, function(list) {
+        userDb.getAreaUsers(lessPoint,greaterPoint, function(list) {
             console.log("getAreaUsers");
             list.forEach(function(doc) {
                 if (doc.exists) {
                     var data = doc.data()
 
                     if (doc.id == deviceUid) {
-                        console.log("kkkkkk")
-                        console.log(doc.data())
                         if (data.position != undefined && data.position != null) {
                             if (!isNaN(data.position.latitude) && !isNaN(data.position.longitude)) {
                                 goToACertainPosition(new google.maps.LatLng(data.position.latitude, data.position.longitude));
@@ -378,7 +379,19 @@
                     }
                     if (data.position != undefined && data.position != null) {
                         if (!isNaN(data.position.latitude) && !isNaN(data.position.longitude)) {
+
+
+                        var distance = geolib.getDistance(
+                            {latitude: nowLat, longitude: nowLng},
+                            {latitude: data.position.latitude, longitude: data.position.longitude}
+                        );
+
+                        console.log(distance)
+
+                         if(distanceForQuery >= distance){
                             markerSet(doc.id, data.position.latitude, data.position.longitude, data.name)
+                         }
+
                         }
                     }
 
@@ -402,7 +415,20 @@
 
                     if (data.position != undefined && data.position != null) {
                         if (!isNaN(data.position.latitude) && !isNaN(data.position.longitude)) {
-                            markerSet(doc.id, data.position.latitude, data.position.longitude, data.name)
+
+                                    var distance = geolib.getDistance(
+                                        {latitude: nowLat, longitude: nowLng},
+                                        {latitude: data.position.latitude, longitude: data.position.longitude}
+                                    );
+
+                                    console.log(distance)
+
+                                    if(distanceForQuery >= distance){
+                                        markerSet(doc.id, data.position.latitude, data.position.longitude, data.name)
+                                    }
+
+
+
                         }
                     }
 
@@ -471,10 +497,6 @@
     window.onload = async function() {
         private.init();
         // DB初期化
-        queryFirestore({
-            lat: 35.158878699999995,
-            lng: 136.89314629999998
-        })
 
         initMap(); //initilize maps
         navigator.geolocation.getCurrentPosition(function(position) {
@@ -482,10 +504,6 @@
             nowLat = position.coords.latitude;
             nowLng = position.coords.longitude;
 
-            // queryFirestore({
-            //     lat: nowLat,
-            //     lng: nowLat
-            // });
             console.log(position)
 
             goToCurrentPosition();
@@ -500,6 +518,29 @@
                 })
                 showMarks(); //refresh marks on the map
             });
+
+
+            // console.log("Fingerprint: uid = " + uid);
+
+            //ユーザー情報を取得（取得できなければ、ユーザー登録）
+
+            // ~1 mile of lat and lon in degrees
+            var lat = 0.0144927536231884
+            var lon = 0.0181818181818182
+            
+            var distance = 5
+            var lowerLat = nowLat - (lat * distance)
+            var lowerLon = nowLng - (lon * distance)
+
+            var greaterLat = nowLat + (lat * distance)
+            var greaterLon = nowLng + (lon * distance)
+
+            var lesserGeopoint = new firebase.firestore.GeoPoint(lowerLat,lowerLon)
+            var greaterGeopoint = new firebase.firestore.GeoPoint(greaterLat,greaterLon)
+
+            //getAreaUsers(lesserGeopoint,greaterGeopoint);
+
+
         })
 
         var watchID = navigator.geolocation.watchPosition(function(position) {
@@ -535,9 +576,6 @@
                 for (var i = 0; i < res.length; i++) {
 
                     (function(_i) {
-
-
-
                         showAlert(res[_i].fromName + "からいいねを付けられました")
 
 
@@ -555,12 +593,6 @@
 
             })
         });
-
-        // console.log("Fingerprint: uid = " + uid);
-
-        //ユーザー情報を取得（取得できなければ、ユーザー登録）
-
-        getAreaUsers();
 
     }
 
@@ -640,10 +672,6 @@
             // }
 
         })
-
-
-
-
 
     }
 

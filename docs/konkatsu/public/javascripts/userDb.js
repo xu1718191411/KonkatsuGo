@@ -60,8 +60,6 @@ var userDb = {
         var location = {}
         var hash;
         if (tempPosition != null && tempPosition != undefined) {
-            console.log("ggggggggggggg")
-            console.log(tempPosition)
             location.lat = Number(tempPosition.latitude.toFixed(10));
             location.lng = Number(tempPosition.longitude.toFixed(10));
             hash = geokit.Geokit.hash(location);
@@ -69,10 +67,9 @@ var userDb = {
             return;
         }
 
-
-        this.db.collection(this.COLLECTION).doc(hash).set(data)
+        this.db.collection(this.COLLECTION).doc(uid).set(data)
             .then(function() {
-                console.log("Document successfully written!" + hash);
+                console.log("Document successfully written!" + uid);
                 cb(true)
             })
             .catch(function(error) {
@@ -115,7 +112,11 @@ var userDb = {
     },
 
     // 範囲内のユーザー情報取得
-    getAreaUsers: function(parm, cb) {
+    getAreaUsers: function(lessPoint,greaterPoint, cb) {
+        console.log("-------")
+        console.log(lessPoint)
+        console.log(greaterPoint)
+        console.log("-------")
         this.db.collection(this.COLLECTION)
             .get()
             .then(function(querySnapshot) {
