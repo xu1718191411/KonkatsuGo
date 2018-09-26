@@ -200,6 +200,7 @@
         });
 
         google.maps.event.addListener(map, "click", function(event) {
+
             var uid = generateID(32)
             var lat = event.latLng.lat()
             var lng = event.latLng.lng()
@@ -300,15 +301,52 @@
             if (infoWindow != null) {
                 infoWindow.close()
             }
+
+
+            var thisMarkHasGivenAComplimentForYou;
+
+            //この"良いね"を押す時の条件式に「半径100m以内にいるときにしか"いいね"を送れない（返信はどこからでも可能）」
+            for(var i=0;i<app.items.length;i++){
+                if(app.items[i].uid == marker.id){
+                    thisMarkHasGivenAComplimentForYou = true;
+                }
+            }
+
+
             infoWindow = new google.maps.InfoWindow({
-                content: '<h2>' + marker.name + '</h2><button id="giveCompliment">いいね</button>'
+                    content: '<h2>' + marker.name + '</h2>'
             })
+
+            if (marker.position != undefined && marker.position != null) {
+                if (!isNaN(marker.position.lat()) && !isNaN(marker.position.lng())) {
+
+                var distance = geolib.getDistance(
+                    {latitude: nowLat, longitude: nowLng},
+                    {latitude: marker.position.lat(), longitude: marker.position.lng()}
+                );
+
+                console.log(distance)
+
+                if(distanceForQuery >= distance || thisMarkHasGivenAComplimentForYou){
+                infoWindow = new google.maps.InfoWindow({
+                    content: '<h2>' + marker.name + '</h2><button id="giveCompliment">いいね</button>'
+                })
+                }
+
+                }
+            }
+
+
+
+
 
             infoWindow.open(marker.getMap(), marker);
 
             google.maps.event.addListener(infoWindow, "domready", function() {
-                document.getElementById("giveCompliment").onclick = function() {
+                if(document.getElementById("giveCompliment") != null){
+                    document.getElementById("giveCompliment").onclick = function() {
                     doCompliment(marker.id, marker.name);
+                }
                 }
             })
         });
@@ -380,17 +418,16 @@
                     if (data.position != undefined && data.position != null) {
                         if (!isNaN(data.position.latitude) && !isNaN(data.position.longitude)) {
 
+                        // var distance = geolib.getDistance(
+                        //     {latitude: nowLat, longitude: nowLng},
+                        //     {latitude: data.position.latitude, longitude: data.position.longitude}
+                        // );
 
-                        var distance = geolib.getDistance(
-                            {latitude: nowLat, longitude: nowLng},
-                            {latitude: data.position.latitude, longitude: data.position.longitude}
-                        );
+                        // console.log(distance)
 
-                        console.log(distance)
-
-                         if(distanceForQuery >= distance){
+                        //  if(distanceForQuery >= distance){
                             markerSet(doc.id, data.position.latitude, data.position.longitude, data.name)
-                         }
+                        //  }
 
                         }
                     }
@@ -416,16 +453,16 @@
                     if (data.position != undefined && data.position != null) {
                         if (!isNaN(data.position.latitude) && !isNaN(data.position.longitude)) {
 
-                                    var distance = geolib.getDistance(
-                                        {latitude: nowLat, longitude: nowLng},
-                                        {latitude: data.position.latitude, longitude: data.position.longitude}
-                                    );
+                                    // var distance = geolib.getDistance(
+                                    //     {latitude: nowLat, longitude: nowLng},
+                                    //     {latitude: data.position.latitude, longitude: data.position.longitude}
+                                    // );
 
-                                    console.log(distance)
+                                    // console.log(distance)
 
-                                    if(distanceForQuery >= distance){
+                                    // if(distanceForQuery >= distance){
                                         markerSet(doc.id, data.position.latitude, data.position.longitude, data.name)
-                                    }
+                                    // }
 
 
 
