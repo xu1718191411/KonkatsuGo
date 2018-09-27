@@ -207,19 +207,24 @@
             var name = generateName(5)
             var position = new firebase.firestore.GeoPoint(lat, lng)
                 //save data
+
+            var sex 
+            if(Math.random() < 0.5){
+                sex = "male";
+            }else{
+                sex = "female";
+            }
+
             userDb.setUserData(uid, {
                 name: name,
-                sex: "female",
+                sex: sex,
                 position: position
             }, function(success) {
                 console.log("登録成功")
             })
 
-            if(Math.random() < 0.5){
-                markerSet(uid, lat, lng, name,"male");
-            }else{
-                markerSet(uid, lat, lng, name,"female");
-            }
+            markerSet(uid, lat, lng, name,sex);
+
             
             showMarks();
         })
