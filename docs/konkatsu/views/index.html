@@ -264,7 +264,9 @@
     function markerSet(id, lat, lng, name) {
 
         if (!markers[id]) {
-            markers[id] = new google.maps.Marker();
+            markers[id] = new google.maps.Marker({
+                icon:""
+            });
         }
 
         if (lat && lng) {

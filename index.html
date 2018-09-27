@@ -214,7 +214,13 @@
             }, function(success) {
                 console.log("登録成功")
             })
-            markerSet(uid, lat, lng, name);
+
+            if(Math.random() < 0.5){
+                markerSet(uid, lat, lng, name,"male");
+            }else{
+                markerSet(uid, lat, lng, name,"female");
+            }
+            
             showMarks();
         })
     }
@@ -251,19 +257,32 @@
 
     //show all of the marks on the map
     function showMarks() {
-        console.log(markers.length)
         for (let marker of markers) {
             if (marker) {
-                marker.setMap(map);
+                if(marker.sex != users[0].sex){
+                    marker.setMap(map);
+                }
             }
         }
     }
 
     //construct marks data
-    function markerSet(id, lat, lng, name) {
+    function markerSet(id, lat, lng, name,sex) {
 
         if (!markers[id]) {
-            markers[id] = new google.maps.Marker();
+            console.log("--------=====")
+            console.log(sex)
+            if(sex == "male"){
+                markers[id] = new google.maps.Marker({
+                icon:"./docs/konkatsu/public/images/male.png"
+                });
+            }else{
+                markers[id] = new google.maps.Marker({
+                icon:"./docs/konkatsu/public/images/female.png"
+                });
+            }
+
+
         }
 
         if (lat && lng) {
@@ -283,6 +302,7 @@
 
         markers[id].name = name
         markers[id].id = id
+        markers[id].sex = sex;
 
         if (id == deviceUid) {
             markers[id].setAnimation(google.maps.Animation.BOUNCE);
@@ -302,6 +322,7 @@
                 infoWindow.close()
             }
 
+            if(marker.id == deviceUid) return;
 
             var thisMarkHasGivenAComplimentForYou;
 
@@ -335,10 +356,6 @@
 
                 }
             }
-
-
-
-
 
             infoWindow.open(marker.getMap(), marker);
 
@@ -380,6 +397,11 @@
                 console.log("Document data:", doc);
                 console.log(doc.data())
                 users[0] = doc.data();
+                console.log("====211=====")
+                console.log(users[0])
+                markerSet(_uid,users[0].position.latitude,users[0].position.longitude,users[0].name,users[0].sex);
+                showMarks();
+
             } else {
                 console.log("No such document!");
                 showRegisterForm(_uid);
@@ -397,79 +419,23 @@
         })
     }
 
-    // 近辺のユーザー情報取得、マーカー設置
-    //search nearby users
-    function getAreaUsers(lessPoint,greaterPoint) {
-
-        userDb.getAreaUsers(lessPoint,greaterPoint, function(list) {
-            console.log("getAreaUsers");
-            list.forEach(function(doc) {
-                if (doc.exists) {
-                    var data = doc.data()
-
-                    if (doc.id == deviceUid) {
-                        if (data.position != undefined && data.position != null) {
-                            if (!isNaN(data.position.latitude) && !isNaN(data.position.longitude)) {
-                                goToACertainPosition(new google.maps.LatLng(data.position.latitude, data.position.longitude));
-                            }
-                        }
-
-                    }
-                    if (data.position != undefined && data.position != null) {
-                        if (!isNaN(data.position.latitude) && !isNaN(data.position.longitude)) {
-
-                        // var distance = geolib.getDistance(
-                        //     {latitude: nowLat, longitude: nowLng},
-                        //     {latitude: data.position.latitude, longitude: data.position.longitude}
-                        // );
-
-                        // console.log(distance)
-
-                        //  if(distanceForQuery >= distance){
-                            markerSet(doc.id, data.position.latitude, data.position.longitude, data.name)
-                        //  }
-
-                        }
-                    }
-
-
-                }
-
-            });
-
-            showMarks();
-        });
-
-
-    }
 
     function receiveAreaUsers(list) {
         list.forEach(function(doc) {
             if (doc.exists) {
                 var data = doc.data()
 
-                if (doc.id != deviceUid) {
-
                     if (data.position != undefined && data.position != null) {
                         if (!isNaN(data.position.latitude) && !isNaN(data.position.longitude)) {
-
-                                    // var distance = geolib.getDistance(
-                                    //     {latitude: nowLat, longitude: nowLng},
-                                    //     {latitude: data.position.latitude, longitude: data.position.longitude}
-                                    // );
-
-                                    // console.log(distance)
-
-                                    // if(distanceForQuery >= distance){
-                                        markerSet(doc.id, data.position.latitude, data.position.longitude, data.name)
-                                    // }
-
-
-
+                            
+                            console.log("ccccc")
+                            console.log(data)
+                            markerSet(doc.id, data.position.latitude, data.position.longitude, data.name,data.sex)
+                                
                         }
                     }
 
-                }
+                
             }
 
         });
@@ -548,12 +514,12 @@
             // 端末UID取得
             getUID(function(uid) {
                 deviceUid = uid;
-                markerSet(uid, nowLat, nowLng, "あなた"); //update current position marks
+                //markerSet(uid, nowLat, nowLng, "あなた","male"); //update current position marks
                 position = new firebase.firestore.GeoPoint(nowLat, nowLng)
                 updateUserInfo(uid, {
                     position: position
                 })
-                showMarks(); //refresh marks on the map
+                //showMarks(); //refresh marks on the map
             });
 
 
@@ -580,27 +546,27 @@
 
         })
 
-        var watchID = navigator.geolocation.watchPosition(function(position) {
-            nowLat = position.coords.latitude;
-            nowLng = position.coords.longitude;
-            console.log("pos : " + nowLat + "," + nowLng);
+        // var watchID = navigator.geolocation.watchPosition(function(position) {
+        //     nowLat = position.coords.latitude;
+        //     nowLng = position.coords.longitude;
+        //     console.log("pos : " + nowLat + "," + nowLng);
 
-            if(deviceUid == null) return;
+        //     if(deviceUid == null) return;
   
-            markerSet(deviceUid, nowLat, nowLng, "あなた"); //update current position marks
-            position = new firebase.firestore.GeoPoint(nowLat, nowLng)
-            updateUserInfo(deviceUid, {
-                position: position
-            })
-            showMarks(); //refresh marks on the map
+        //     markerSet(deviceUid, nowLat, nowLng, "あなた",users[0].sex); //update current position marks
+        //     position = new firebase.firestore.GeoPoint(nowLat, nowLng)
+        //     updateUserInfo(deviceUid, {
+        //         position: position
+        //     })
+        //     showMarks(); //refresh marks on the map
 
 
-            // 自分の位置情報更新
-            //updateLocalPosition and marks
-            // 
-            // setMyInfo();
-            // console.log(users[0]);
-        });
+        //     // 自分の位置情報更新
+        //     //updateLocalPosition and marks
+        //     // 
+        //     // setMyInfo();
+        //     // console.log(users[0]);
+        // });
 
 
         // 端末UID取得
@@ -741,7 +707,7 @@
                     document.getElementById("warning").innerText = "性別を入力してください"
                     return false;
                 }
-
+            
 
                 userDb.setUserData(_uid, {
                     name: swal_name,
@@ -750,6 +716,7 @@
                 }, function(success) {
                     showAlert("登録成功")
                     getMyInfo(_uid);
+
                 })
 
 
