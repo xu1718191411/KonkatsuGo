@@ -141,6 +141,7 @@
 
 <script src="/javascripts/viewers.js"></script>
 
+
 <script>
     var map;
     var nowLat, nowLng;
@@ -562,18 +563,18 @@
             //ユーザー情報を取得（取得できなければ、ユーザー登録）
 
             // ~1 mile of lat and lon in degrees
-            var lat = 0.0144927536231884
-            var lon = 0.0181818181818182
+            // var lat = 0.0144927536231884
+            // var lon = 0.0181818181818182
             
-            var distance = 5
-            var lowerLat = nowLat - (lat * distance)
-            var lowerLon = nowLng - (lon * distance)
+            // var distance = 5
+            // var lowerLat = nowLat - (lat * distance)
+            // var lowerLon = nowLng - (lon * distance)
 
-            var greaterLat = nowLat + (lat * distance)
-            var greaterLon = nowLng + (lon * distance)
+            // var greaterLat = nowLat + (lat * distance)
+            // var greaterLon = nowLng + (lon * distance)
 
-            var lesserGeopoint = new firebase.firestore.GeoPoint(lowerLat,lowerLon)
-            var greaterGeopoint = new firebase.firestore.GeoPoint(greaterLat,greaterLon)
+            // var lesserGeopoint = new firebase.firestore.GeoPoint(lowerLat,lowerLon)
+            // var greaterGeopoint = new firebase.firestore.GeoPoint(greaterLat,greaterLon)
 
             //getAreaUsers(lesserGeopoint,greaterGeopoint);
 
@@ -584,6 +585,16 @@
             nowLat = position.coords.latitude;
             nowLng = position.coords.longitude;
             console.log("pos : " + nowLat + "," + nowLng);
+
+            if(deviceUid == null) return;
+  
+            markerSet(deviceUid, nowLat, nowLng, "あなた"); //update current position marks
+            position = new firebase.firestore.GeoPoint(nowLat, nowLng)
+            updateUserInfo(deviceUid, {
+                position: position
+            })
+            showMarks(); //refresh marks on the map
+
 
             // 自分の位置情報更新
             //updateLocalPosition and marks
@@ -611,17 +622,29 @@
                 app.items = res;
 
                 for (var i = 0; i < res.length; i++) {
+                    if(res[i].checked) continue;
 
                     (function(_i) {
-                        showAlert(res[_i].fromName + "からいいねを付けられました")
 
+
+                        if(!res[_i].checked){
+                            showReceiveSomeCompliment(res[_i],res[_i].fromName + "からいいねを付けられました");
+                            userDb.updateComplimentInfo(res[_i].id,{checked:true},function(res){
+
+                            }) 
+                        }
 
                         userDb.checkMatching(deviceUid, res[_i].uid, function(matchingSuccess) {
                             if (matchingSuccess) {
                                 res[_i].success = 1
                                 app.items = []
                                 app.items = res
-                                matchingSuccessfully();
+
+                                if(!res[_i].checked){
+                                    matchingSuccessfully();
+                                }
+
+                                
                             }
                         })
                     })(i)
@@ -629,6 +652,41 @@
                 }
 
             })
+
+
+                        //自分から送ったいいね
+            userDb.onMySelfComplimentListened(uid, function(res) {
+                var items = [];
+                for (var i = 0; i < res.length; i++) {
+                    
+    
+                         //this is the opposite person whom I have given a compliment
+       
+                        if(app != null && app != undefined){
+                            if(app.items != null && app.items != undefined){
+
+                                items = app.items;
+                                for(var j=0;j<items.length;j++){
+                                    if(items[j].uid == res[i].target){
+                                        items[j].success = 1
+                                        if(!res[i].checked){
+                                            matchingSuccessfully();   
+                                        }             
+                                    }
+                                }
+
+                            }
+                        }
+                }
+
+                if(items.length != 0){
+                    app.items = []
+                    app.items = items;
+                }
+
+            })
+
+
         });
 
     }
@@ -723,13 +781,35 @@
         showAlert("いいねもう付けましたよ");
     }
 
+    function showReceiveSomeCompliment(data,str){
+        swal({
+            "text": str,
+            "background": "opacity: 1"
+        ,preConfirm:function(){
+
+        }
+        }).then((result) => {
+           userDb.updateComplimentInfo(data.id,{checked:true},function(res){
+
+           }) 
+
+        })
+    }
+
     function showAlert(str) {
         swal({
             "text": str,
             "background": "opacity: 1"
+        ,preConfirm:function(){
+
+        }
+        }).then((result) => {
+        if (result.value) {
+        }
         })
     }
 </script>
+
 
 
 </html>

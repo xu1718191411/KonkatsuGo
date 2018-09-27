@@ -1,6 +1,6 @@
 // Query viewers' locations from Firestore
 let geoQuery;
-const collectionRef = firestore.collection('viewers');
+const collectionRef = firestore.collection('users');
 const geoFirestore = new GeoFirestore(collectionRef);
 const radius = 5;
 

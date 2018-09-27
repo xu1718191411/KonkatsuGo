@@ -93,16 +93,43 @@ var userDb = {
             });
     },
 
+    updateComplimentInfo:function(id,data,cb){
+        this.db.collection(this.COLLECTIONCOMPLIMENT).doc(id).update(data)
+        .then(function() {
+            console.log("Document successfully updated!");
+            cb(true)
+        })
+        .catch(function(error) {
+            console.error("Error updating document: ", error);
+            cb(false)
+        });
+    },
+
     onMyComplimentListened: function(uid, cb) {
         this.db.collection(this.COLLECTIONCOMPLIMENT).where("target", "==", uid).onSnapshot(function(querySnapshot) {
 
             var resultArr = []
             querySnapshot.forEach(function(doc) {
-                console.log(doc.data());
-                resultArr.push(doc.data())
+                var data = doc.data();
+                data.id = doc.id
+                resultArr.push(data)
             });
             cb(resultArr)
         });
+    },
+
+    onMySelfComplimentListened:function(uid,cb){
+        this.db.collection(this.COLLECTIONCOMPLIMENT).where("uid","==",uid).onSnapshot(function(querySnapshot) {
+
+            var resultArr = []
+            querySnapshot.forEach(function(doc) {
+                var data = doc.data();
+                data.id = doc.id
+                resultArr.push(data)
+            });
+            cb(resultArr)
+        });
+
     },
 
     onNewUserAdded: function(cb) {

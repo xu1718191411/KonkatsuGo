@@ -6,9 +6,21 @@
     <meta name="viewport" content="initial-scale=1.0">
     <meta charset="utf-8">
     <script src="./docs/konkatsu/public/javascripts/vue.min.js"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBQdVnFEapGR5pn0W3zapAFG1fiCfCixFQ"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fingerprintjs2/1.6.1/fingerprint2.min.js"></script>
+    <!-- <script src="https://www.gstatic.com/firebasejs/4.12.1/firebase.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/4.12.1/firebase-firestore.js"></script> -->
+    <script src="https://www.gstatic.com/firebasejs/5.3.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/5.3.0/firebase-firestore.js"></script>
+    <script src="./docs/konkatsu/public/javascripts/config.js"></script>
+    <script src="./docs/konkatsu/public/javascripts/userDb.js"></script>
+    <script src="./docs/konkatsu/public/javascripts/geolib.js"></script>
+    <script src="./docs/konkatsu/public/javascripts/sweetalert2.all.min.js"></script>
+
+    <link rel="stylesheet" href="/stylesheets/sweetalert2.min.css">
     <style>
         /* Always set the map height explicitly to define the size of the div
-        * element that contains the map. */
+       * element that contains the map. */
         
         #map {
             height: 50%;
@@ -56,236 +68,314 @@
             padding: 8px 5px;
             font-size: 12px;
         }
-
-        .toolbar>.list{
+        
+        .toolbar>.list {
             text-align: left;
-            width:100%;
+            width: 100%;
             margin-top: 4px;
-            margin-left:2px;
+            margin-left: 2px;
             padding: 8px 5px;
             font-size: 16px;
             background-color: rgb(243, 150, 150);
             border-radius: 6px;
         }
+        
+        #warning {
+            color: orangered;
+            text-align: center;
+        }
     </style>
 </head>
-            
+
 <body>
-<div id="map"></div>
-<div>
-    <div class="toolbar">
-        <div class="button" onclick="setDummyUser()">DummyUser追加</div>
-        <div class="button" id="buttonPrivate" onclick="private.click()">自分公開中</div>
-        <div class="button" id="buttonDispMode" onclick="dispMode.click()">全員表示</div>
-    </div>
-</div>
-
-<div id="app">
-
-    <div class="toolbar">
-        <div class="list" v-for="(item, index) in items">
-        {{item.fromName}}さんはあなたにいいねをつけました！
-        <span v-if="item.success == 1">マッチング成功!</span>
+    <div id="map"></div>
+    <div>
+        <div class="toolbar">
+            <div class="button" onclick="setDummyUser()">DummyUser追加</div>
+            <div class="button" id="buttonPrivate" onclick="private.click()">自分公開中</div>
+            <div class="button" id="buttonDispMode" onclick="dispMode.click()">全員表示</div>
         </div>
     </div>
-    
-</div>
 
+    <div id="app">
 
+        <div class="toolbar">
+            <div class="list" v-for="(item, index) in items">
+                {{item.fromName}}さんはあなたにいいねをつけました！
+                <span v-if="item.success == 1">マッチング成功!</span>
+            </div>
+        </div>
+
+    </div>
 </body>
 
+<script>
+    //var config = configData.config;
+    var config = {
+        apiKey: 'AIzaSyBId_rgRqnyKqDB7qXLcTcH0c0uS7Ai-VY',
+        databaseURL: 'https://lunchambition-1504446899161.firebaseio.com',
+        projectId: 'lunchambition-1504446899161'
+    };
+    firebase.initializeApp(config);
+    // Initialize Cloud Firestore through Firebase
+
+
+    const firestore = firebase.firestore();
+
+    const settings = {
+        timestampsInSnapshots: true
+    };
+    firestore.settings(settings);
+
+    userDb.init(); //db = firebase.firestore();
+
+    var distanceForQuery = 100;
+</script>
+
+
+<!-- GeoFirestore -->
+<script src="https://unpkg.com/geofirestore@2.0.2/dist/geofirestore.js"></script>
+
+<!-- Geokit -->
+<script src="https://unpkg.com/geokit@0.1.2/dist/geokit.js"></script>
+
+<script src="./docs/konkatsu/public/javascripts/viewers.js"></script>
 
 <script>
-        var map;
-        var nowLat, nowLng;
-        var markers = [];
-        var users = {};
-        var db;
-        var config;
-        var infoWindow;
-        var deviceUid;
-        var fistLoadNotification = false;
-    
-        var app = new Vue({
-            el: '#app',
-            data: {
-                items: [
-    
-                ]
-            }
-        })
-    
-        // プライベートモード
-        var private = {
-            isPrivate: true,
-            disp: function() {
-                // if (this.isPrivate)
-                //     $('#buttonPrivate').text('自分非公開中');
-                // else
-                //     $('#buttonPrivate').text('自分公開中');
-            },
-            init: function() {
-                this.isPrivate = true;
-                this.disp();
-            },
-            click: function() {
-                console.log("private.click");
-                this.isPrivate = !this.isPrivate;
-                this.disp();
-                setMyInfo(); //DB反映
-            }
-        };
-    
-        // 表示モード
-        var dispMode = {
-            click: function() {
-                console.log("dispMode.click");
-            }
-        };
-    
-    
-        function initMap() {
-            map = new google.maps.Map(document.getElementById('map'), {
-                center: new google.maps.LatLng(35.6314665,139.8822901),
-                zoom: 17
-            });
-    
-            google.maps.event.addListener(map,"click",function(event){
-                var uid = generateID(32)
-                var lat = event.latLng.lat()
-                var lng = event.latLng.lng()
-                var name = generateName(5)
-                var position = new firebase.firestore.GeoPoint(lat,lng)
+    var map;
+    var nowLat, nowLng;
+    var markers = [];
+    var users = {};
+    var db;
+    var config;
+    var infoWindow;
+    var deviceUid;
+    var fistLoadNotification = false;
+
+    var app = new Vue({
+        el: '#app',
+        data: {
+            items: [
+
+            ]
+        }
+    })
+
+
+
+
+    // プライベートモード
+    var private = {
+        isPrivate: true,
+        disp: function() {
+            // if (this.isPrivate)
+            //     $('#buttonPrivate').text('自分非公開中');
+            // else
+            //     $('#buttonPrivate').text('自分公開中');
+        },
+        init: function() {
+            this.isPrivate = true;
+            this.disp();
+        },
+        click: function() {
+            console.log("private.click");
+            this.isPrivate = !this.isPrivate;
+            this.disp();
+            setMyInfo(); //DB反映
+        }
+    };
+
+    // 表示モード
+    var dispMode = {
+        click: function() {
+            console.log("dispMode.click");
+        }
+    };
+
+
+    function initMap() {
+        map = new google.maps.Map(document.getElementById('map'), {
+            center: new google.maps.LatLng(35.6314665, 139.8822901),
+            zoom: 17
+        });
+
+        google.maps.event.addListener(map, "click", function(event) {
+
+            var uid = generateID(32)
+            var lat = event.latLng.lat()
+            var lng = event.latLng.lng()
+            var name = generateName(5)
+            var position = new firebase.firestore.GeoPoint(lat, lng)
                 //save data
-                userDb.setUserData(uid,{name:name,sex:"female",position:position},function(success){
-                    console.log("登録成功")
-                })
-                markerSet(uid,lat,lng,name);
-                showMarks();
+            userDb.setUserData(uid, {
+                name: name,
+                sex: "female",
+                position: position
+            }, function(success) {
+                console.log("登録成功")
             })
+            markerSet(uid, lat, lng, name);
+            showMarks();
+        })
+    }
+
+    function generateID(length) {
+        var chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXTZabcdefghiklmnopqrstuvwxyz'.split('');
+        var str = "";
+        for (i = 0; i < length; i++) {
+            str += chars[Math.round(Math.random() * length)]
         }
-    
-        function generateID(length){
-            var chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXTZabcdefghiklmnopqrstuvwxyz'.split('');
-            var str = "";
-            for(i=0;i<length;i++){
-                str += chars[Math.round(Math.random()*length)]
+        return str;
+    }
+
+    function generateName(length) {
+        var chars = 'abcdefghiklmnopqrstuvwxyz'.split('');
+        var str = "";
+        for (i = 0; i < length; i++) {
+            str += chars[Math.round(Math.random() * length)]
+        }
+        console.log(str)
+        return str;
+    }
+
+    function goToCurrentPosition(n) {
+        if (map == null) return;
+        if (nowLat == null) return;
+        if (nowLng == null) return;
+        map.setCenter(new google.maps.LatLng(nowLat, nowLng))
+    }
+
+    function goToACertainPosition(pos) {
+        map.setCenter(pos)
+    }
+
+    //show all of the marks on the map
+    function showMarks() {
+        console.log(markers.length)
+        for (let marker of markers) {
+            if (marker) {
+                marker.setMap(map);
             }
-            return str;
         }
-    
-        function generateName(length){
-            var chars = 'abcdefghiklmnopqrstuvwxyz'.split('');
-            var str = "";
-            for(i=0;i<length;i++){
-                str += chars[Math.round(Math.random()*length)]
-            }
-            console.log(str)
-            return str;
+    }
+
+    //construct marks data
+    function markerSet(id, lat, lng, name) {
+
+        if (!markers[id]) {
+            markers[id] = new google.maps.Marker();
         }
-    
-        function goToCurrentPosition(n){
-            if(map == null) return;
-            if(nowLat == null) return;
-            if(nowLng == null) return;
-            map.setCenter(new google.maps.LatLng(nowLat,nowLng))
-        }
-    
-        function goToACertainPosition(pos){
-            map.setCenter(pos)
-        }
-    
-        //show all of the marks on the map
-        function showMarks(){
-            console.log(markers.length)
-            for (let marker of markers) {
-                if (marker) {
-                    marker.setMap(map);
+
+        if (lat && lng) {
+            markers[id].setMap(map);
+            markers[id].setPosition(new google.maps.LatLng(lat, lng));
+            if (name && name != "") {
+                var label = {
+                    fontSize: "9px",
+                    text: name,
+                    color: "white",
                 }
+                markers[id].setLabel(label);
             }
+        } else {
+            markers[id].setMap(null);
         }
-        
-        //construct marks data
-        function markerSet(id, lat, lng, name) {
-    
-            if (!markers[id]) {
-                markers[id] = new google.maps.Marker();
-            }
-    
-            if (lat && lng) {
-                markers[id].setMap(map);
-                markers[id].setPosition(new google.maps.LatLng(lat, lng));
-                if (name && name != "") {
-                    var label = {
-                        fontSize: "9px",
-                        text: name,
-                        color: "white",
-                    }
-                    markers[id].setLabel(label);
-                }
-            } else {
-                markers[id].setMap(null);
-            }
-    
-            markers[id].name = name
-            markers[id].id = id
-    
-            if (id == deviceUid) {
-                markers[id].setAnimation(google.maps.Animation.BOUNCE);
-            }
-    
-            markerInfo(markers[id])
+
+        markers[id].name = name
+        markers[id].id = id
+
+        if (id == deviceUid) {
+            markers[id].setAnimation(google.maps.Animation.BOUNCE);
+        }
+
+        markerInfo(markers[id])
             // console.log(markers[id]);
-    
-        }
-    
-        function markerInfo(marker) {
-            
-            //add balloon popup listener
-            google.maps.event.addListener(marker, 'click', function (event) {
-                console.log(marker)
-                if(infoWindow != null){
-                    infoWindow.close()
+
+    }
+
+    function markerInfo(marker) {
+
+        //add balloon popup listener
+        google.maps.event.addListener(marker, 'click', function(event) {
+            console.log(marker)
+            if (infoWindow != null) {
+                infoWindow.close()
+            }
+
+
+            var thisMarkHasGivenAComplimentForYou;
+
+            //この"良いね"を押す時の条件式に「半径100m以内にいるときにしか"いいね"を送れない（返信はどこからでも可能）」
+            for(var i=0;i<app.items.length;i++){
+                if(app.items[i].uid == marker.id){
+                    thisMarkHasGivenAComplimentForYou = true;
                 }
-                infoWindow = new google.maps.InfoWindow({
-                    content: '<h2>'+marker.name+'</h2><button id="giveCompliment">いいね</button>'
-                })
-    
-                infoWindow.open(marker.getMap(), marker);
-    
-                google.maps.event.addListener(infoWindow,"domready",function(){
-                    document.getElementById("giveCompliment").onclick = function(){
-                        doCompliment(marker.id,marker.name);
-                    }
-                })
-            });
-    
-        }
-    
-        function doCompliment(targetID,name){
-    
-            getUID(function(uid){
-                userDb.compliment(uid,targetID,users[0].name,name,function(success){
-                    if(success){
-                        showAlert(name+"さんにいいねをつけました^^");
-                        userDb.checkMatching(uid,targetID,function(matchingSuccess){
-                                if(matchingSuccess){
-                                    matchingSuccessfully();
-                                }
-                        });
-                    }else{
-                        alreadyDoneTheCompliment();
-                    }
-                })
+            }
+
+
+            infoWindow = new google.maps.InfoWindow({
+                    content: '<h2>' + marker.name + '</h2>'
             })
-        }
-    
-    
-        // 自分の情報取得（取得できなければ、ユーザー登録）
-        function getMyInfo(_uid) {
-            users[0] = {};
-            userDb.getUserData(_uid,function(doc){
-                console.log("ggss")
+
+            if (marker.position != undefined && marker.position != null) {
+                if (!isNaN(marker.position.lat()) && !isNaN(marker.position.lng())) {
+
+                var distance = geolib.getDistance(
+                    {latitude: nowLat, longitude: nowLng},
+                    {latitude: marker.position.lat(), longitude: marker.position.lng()}
+                );
+
+                console.log(distance)
+
+                if(distanceForQuery >= distance || thisMarkHasGivenAComplimentForYou){
+                infoWindow = new google.maps.InfoWindow({
+                    content: '<h2>' + marker.name + '</h2><button id="giveCompliment">いいね</button>'
+                })
+                }
+
+                }
+            }
+
+
+
+
+
+            infoWindow.open(marker.getMap(), marker);
+
+            google.maps.event.addListener(infoWindow, "domready", function() {
+                if(document.getElementById("giveCompliment") != null){
+                    document.getElementById("giveCompliment").onclick = function() {
+                    doCompliment(marker.id, marker.name);
+                }
+                }
+            })
+        });
+
+    }
+
+    function doCompliment(targetID, name) {
+
+        getUID(function(uid) {
+            userDb.compliment(uid, targetID, users[0].name, name, function(success) {
+                if (success) {
+                    showAlert(name + "さんにいいねをつけました^^");
+                    userDb.checkMatching(uid, targetID, function(matchingSuccess) {
+                        if (matchingSuccess) {
+                            matchingSuccessfully();
+                        }
+                    });
+                } else {
+                    alreadyDoneTheCompliment();
+                }
+            })
+        })
+    }
+
+
+    // 自分の情報取得（取得できなければ、ユーザー登録）
+    function getMyInfo(_uid) {
+        users[0] = {};
+        userDb.getUserData(_uid, function(doc) {
             if (doc.exists) {
                 console.log("Document data:", doc);
                 console.log(doc.data())
@@ -294,339 +384,430 @@
                 console.log("No such document!");
                 showRegisterForm(_uid);
             }
-            });
-        }
-    
-        function updateUserInfo(uid,data){
-            userDb.updateUserInfo(uid,data,function(success){
-                if(success){
-                    console.log("update location with success")
-                }else{
-                    console.log("update location without success")
-                }
-            })
-        }
-    
-        // 近辺のユーザー情報取得、マーカー設置
-        function getAreaUsers() {
-        
-            
-                userDb.getAreaUsers({}, function(list) {
-                    console.log("getAreaUsers");
-                    list.forEach(function(doc) {
-                        if(doc.exists){
-                            var data = doc.data()
-    
-                            if(doc.id == deviceUid){
-                                console.log("kkkkkk")
-                                console.log(doc.data())
-                                if(data.position != undefined && data.position != null){
-                                    if(!isNaN(data.position.latitude) && !isNaN(data.position.longitude)){
-                                        goToACertainPosition(new google.maps.LatLng(data.position.latitude,data.position.longitude));
-                                    }
-                                }
-    
-                            }
-                                if(data.position != undefined && data.position != null){
-                                    if(!isNaN(data.position.latitude) && !isNaN(data.position.longitude)){
-                                        markerSet(doc.id,data.position.latitude,data.position.longitude,data.name)
-                                    }
-                                }
-    
-                    
-                        }
-    
-                    });
-    
-                    showMarks();
-                });
-            
-    
-        }
-    
-        function receiveAreaUsers(list){
+        });
+    }
+
+    function updateUserInfo(uid, data) {
+        userDb.updateUserInfo(uid, data, function(success) {
+            if (success) {
+                console.log("update location with success")
+            } else {
+                console.log("update location without success")
+            }
+        })
+    }
+
+    // 近辺のユーザー情報取得、マーカー設置
+    //search nearby users
+    function getAreaUsers(lessPoint,greaterPoint) {
+
+        userDb.getAreaUsers(lessPoint,greaterPoint, function(list) {
+            console.log("getAreaUsers");
             list.forEach(function(doc) {
-                        if(doc.exists){
-                            var data = doc.data()
-    
-                            if(doc.id != deviceUid){
-                                
-                                if(data.position != undefined && data.position != null){
-                                    if(!isNaN(data.position.latitude) && !isNaN(data.position.longitude)){
-                                        markerSet(doc.id,data.position.latitude,data.position.longitude,data.name)
-                                    }
-                                }
-    
+                if (doc.exists) {
+                    var data = doc.data()
+
+                    if (doc.id == deviceUid) {
+                        if (data.position != undefined && data.position != null) {
+                            if (!isNaN(data.position.latitude) && !isNaN(data.position.longitude)) {
+                                goToACertainPosition(new google.maps.LatLng(data.position.latitude, data.position.longitude));
                             }
                         }
-    
-                    });
-    
-                    showMarks();
-        }
-    
-    
-        //ダミーユーザー
-        function setDummyUser() {
-            var name = genDummyUserName();
-            var id = getDummyUserId(name);
-            var r1 = (Math.random() - 0.5) * 0.004;
-            var r2 = (Math.random() - 0.5) * 0.004;
-            userDb.setUserData(id, {
-                uid: id,
-                name: name,
-                sex: "male",
-                lat: nowLat + r1,
-                lng: nowLng + r2,
-                dummy: true,
+
+                    }
+                    if (data.position != undefined && data.position != null) {
+                        if (!isNaN(data.position.latitude) && !isNaN(data.position.longitude)) {
+
+                        // var distance = geolib.getDistance(
+                        //     {latitude: nowLat, longitude: nowLng},
+                        //     {latitude: data.position.latitude, longitude: data.position.longitude}
+                        // );
+
+                        // console.log(distance)
+
+                        //  if(distanceForQuery >= distance){
+                            markerSet(doc.id, data.position.latitude, data.position.longitude, data.name)
+                        //  }
+
+                        }
+                    }
+
+
+                }
+
             });
-        }
-    
-        function moveDummyUser() {
-            for (let id in users) {
-                let user = users[id];
-                if (user.dummy) {
-                    var r1 = (Math.random() - 0.5) * 0.0003;
-                    var r2 = (Math.random() - 0.5) * 0.0003;
-                    user.lat += r1;
-                    user.lng += r2;
-                    userDb.setUserData(id, user);
+
+            showMarks();
+        });
+
+
+    }
+
+    function receiveAreaUsers(list) {
+        list.forEach(function(doc) {
+            if (doc.exists) {
+                var data = doc.data()
+
+                if (doc.id != deviceUid) {
+
+                    if (data.position != undefined && data.position != null) {
+                        if (!isNaN(data.position.latitude) && !isNaN(data.position.longitude)) {
+
+                                    // var distance = geolib.getDistance(
+                                    //     {latitude: nowLat, longitude: nowLng},
+                                    //     {latitude: data.position.latitude, longitude: data.position.longitude}
+                                    // );
+
+                                    // console.log(distance)
+
+                                    // if(distanceForQuery >= distance){
+                                        markerSet(doc.id, data.position.latitude, data.position.longitude, data.name)
+                                    // }
+
+
+
+                        }
+                    }
+
                 }
             }
-        }
-    
-        function genDummyUserName() {
-            var dict = "あいうけおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよ";
-            var name = "";
-            for (let i = 0; i < 3; i++) {
-                name += dict.charAt(Math.floor(Math.random() * dict.length));
+
+        });
+
+        showMarks();
+    }
+
+
+    //ダミーユーザー
+    function setDummyUser() {
+        var name = genDummyUserName();
+        var id = getDummyUserId(name);
+        var r1 = (Math.random() - 0.5) * 0.004;
+        var r2 = (Math.random() - 0.5) * 0.004;
+        userDb.setUserData(id, {
+            uid: id,
+            name: name,
+            sex: "male",
+            lat: nowLat + r1,
+            lng: nowLng + r2,
+            dummy: true,
+        });
+    }
+
+    function moveDummyUser() {
+        for (let id in users) {
+            let user = users[id];
+            if (user.dummy) {
+                var r1 = (Math.random() - 0.5) * 0.0003;
+                var r2 = (Math.random() - 0.5) * 0.0003;
+                user.lat += r1;
+                user.lng += r2;
+                userDb.setUserData(id, user);
             }
-            // console.log(name);
-            return name;
         }
-    
-        function getDummyUserId(name) {
-            var id = name; //+ (Math.floor(Math.random() * 1000000000000)).toString();
-            // console.log(id);
-            return id;
+    }
+
+    function genDummyUserName() {
+        var dict = "あいうけおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよ";
+        var name = "";
+        for (let i = 0; i < 3; i++) {
+            name += dict.charAt(Math.floor(Math.random() * dict.length));
         }
-    
-        // 端末UID取得
-        function getUID(cb) {
-            
-            new Fingerprint2().get((result) => {
-                cb(result)
-            })
-        
-        }
-    
-        // ロード後に最初に走る処理
-        window.onload = async function() {
-            
-        
-            private.init();
-            // DB初期化
-            var config = configData.config;
-    
-            firebase.initializeApp(config);
-            // Initialize Cloud Firestore through Firebase
-            userDb.init(); //db = firebase.firestore();
-    
-            initMap();//initilize maps
-            navigator.geolocation.getCurrentPosition(function(position){
-                console.log("successfully get current location")
-                nowLat = position.coords.latitude;
-                nowLng = position.coords.longitude;
-                console.log(position)
-    
-                goToCurrentPosition(); 
-                
-                // 端末UID取得
-                getUID(function(uid){
-                    deviceUid = uid;
-                    markerSet(uid, nowLat, nowLng, "あなた");//update current position marks
-                    position = new firebase.firestore.GeoPoint(nowLat,nowLng)
-                    updateUserInfo(uid,{position:position})
-                    showMarks();//refresh marks on the map
-                });
-            })
-    
-            var watchID = navigator.geolocation.watchPosition(function(position) {
-                nowLat = position.coords.latitude;
-                nowLng = position.coords.longitude;
-                console.log("pos : " + nowLat + "," + nowLng);   
-        
-                // 自分の位置情報更新
-                //updateLocalPosition and marks
-                // 
-                // setMyInfo();
-                // console.log(users[0]);
-            });
-    
-    
+        // console.log(name);
+        return name;
+    }
+
+    function getDummyUserId(name) {
+        var id = name; //+ (Math.floor(Math.random() * 1000000000000)).toString();
+        // console.log(id);
+        return id;
+    }
+
+    // 端末UID取得
+    function getUID(cb) {
+        new Fingerprint2().get((result) => {
+            cb(result)
+        })
+    }
+
+    // ロード後に最初に走る処理
+    window.onload = async function() {
+        private.init();
+        // DB初期化
+
+        initMap(); //initilize maps
+        navigator.geolocation.getCurrentPosition(function(position) {
+            console.log("successfully get current location")
+            nowLat = position.coords.latitude;
+            nowLng = position.coords.longitude;
+
+            console.log(position)
+
+            goToCurrentPosition();
+
             // 端末UID取得
-            getUID(function(uid){
+            getUID(function(uid) {
                 deviceUid = uid;
-                getMyInfo(uid);
-                //近辺のユーザー取得
-                // setInterval(function(){
-                //     getAreaUsers();
-                // },3000)
-    
-                userDb.onNewUserAdded(function(results){
-                    console.log(results)
-                    receiveAreaUsers(results)
+                markerSet(uid, nowLat, nowLng, "あなた"); //update current position marks
+                position = new firebase.firestore.GeoPoint(nowLat, nowLng)
+                updateUserInfo(uid, {
+                    position: position
                 })
-    
-                userDb.onMyComplimentListened(uid,function(res){
-    
-    
-    
-                        console.log("111111")
-                        console.log(res)
-                        app.items = res;
-    
-                        for(var i=0;i<res.length;i++){
-    
-                            (function(_i){
-    
-    
-    
-                                    showAlert(res[_i].fromName+"からいいねを付けられました")
-                                    
-    
-                                    userDb.checkMatching(deviceUid,res[_i].uid,function(matchingSuccess){
-                                        if(matchingSuccess){
-                                                res[_i].success = 1
-                                                app.items = []
-                                                app.items = res
-                                                matchingSuccessfully();
-                                        }
-                                    })
-                            })(i)
-    
-                        }
-    
-                })
+                showMarks(); //refresh marks on the map
             });
-        
+
+
             // console.log("Fingerprint: uid = " + uid);
-    
+
             //ユーザー情報を取得（取得できなければ、ユーザー登録）
-    
-            getAreaUsers();
-    
-        }
-    
-    
-        function showRegisterForm(_uid){
-                swal({
-                title: 'ユーザー登録',
-                html:  '<div>名前:<input id="swal-name" class="swal2-input"></div>' +
-                        '<div class="swal2-radio">' +
-    
-                            '<label>' +
-                                '<input type="radio" style="display:none" name="swal2-radio" value="female">' + 
-                                    '<span class="swal2-label">女性</span>' +
-                            '</label>' +
-    
-                            '<label>' +
-                                '<input type="radio" name="swal2-radio" value="male">' + 
-                                    '<span class="swal2-label">男性</span>' +
-                            '</label>' +
-    
-                        '</div>' +
-                        '<div id="warning"></div>',
-                showCancelButton: true,
-                confirmButtonText: '登録',
-                showLoaderOnConfirm: true,
-                preConfirm: (login) => {
-    
-                    swal_name = document.getElementById('swal-name').value;
-                    swal_radios = document.getElementsByName('swal2-radio');
-                    swal_sex = null;
-                    for(i=0;i<swal_radios.length;i++){
-                        if(swal_radios[i].checked){
-                            swal_sex = swal_radios[i].value
+
+            // ~1 mile of lat and lon in degrees
+            // var lat = 0.0144927536231884
+            // var lon = 0.0181818181818182
+            
+            // var distance = 5
+            // var lowerLat = nowLat - (lat * distance)
+            // var lowerLon = nowLng - (lon * distance)
+
+            // var greaterLat = nowLat + (lat * distance)
+            // var greaterLon = nowLng + (lon * distance)
+
+            // var lesserGeopoint = new firebase.firestore.GeoPoint(lowerLat,lowerLon)
+            // var greaterGeopoint = new firebase.firestore.GeoPoint(greaterLat,greaterLon)
+
+            //getAreaUsers(lesserGeopoint,greaterGeopoint);
+
+
+        })
+
+        var watchID = navigator.geolocation.watchPosition(function(position) {
+            nowLat = position.coords.latitude;
+            nowLng = position.coords.longitude;
+            console.log("pos : " + nowLat + "," + nowLng);
+
+            if(deviceUid == null) return;
+  
+            markerSet(deviceUid, nowLat, nowLng, "あなた"); //update current position marks
+            position = new firebase.firestore.GeoPoint(nowLat, nowLng)
+            updateUserInfo(deviceUid, {
+                position: position
+            })
+            showMarks(); //refresh marks on the map
+
+
+            // 自分の位置情報更新
+            //updateLocalPosition and marks
+            // 
+            // setMyInfo();
+            // console.log(users[0]);
+        });
+
+
+        // 端末UID取得
+        getUID(function(uid) {
+            deviceUid = uid;
+            getMyInfo(uid);
+            //近辺のユーザー取得
+            // setInterval(function(){
+            //     getAreaUsers();
+            // },3000)
+
+            userDb.onNewUserAdded(function(results) {
+                console.log(results)
+                receiveAreaUsers(results)
+            })
+
+            userDb.onMyComplimentListened(uid, function(res) {
+                app.items = res;
+
+                for (var i = 0; i < res.length; i++) {
+                    if(res[i].checked) continue;
+
+                    (function(_i) {
+
+
+                        if(!res[_i].checked){
+                            showReceiveSomeCompliment(res[_i],res[_i].fromName + "からいいねを付けられました");
+                            userDb.updateComplimentInfo(res[_i].id,{checked:true},function(res){
+
+                            }) 
                         }
-                    }
-                    var position;
-                    if(nowLat == undefined || nowLng == undefined){
-                        position = null
-                    }else{
-                        position = new firebase.firestore.GeoPoint(nowLat,nowLng)
-                    }
-    
-    
-                
-                    if(swal_name.length == 0){
-                        document.getElementById("warning").innerText = "名前を入力してください"
-                        return false;
-                    }
-    
-    
-                    if(swal_sex == null){
-                        document.getElementById("warning").innerText = "性別を入力してください"
-                        return false;
-                    }
-    
-    
-                    userDb.setUserData(_uid,{name:swal_name,sex:swal_sex,position:position},function(success){
-                        showAlert("登録成功")
-                        getMyInfo(_uid);
-                    })
+
+                        userDb.checkMatching(deviceUid, res[_i].uid, function(matchingSuccess) {
+                            if (matchingSuccess) {
+                                res[_i].success = 1
+                                app.items = []
+                                app.items = res
+
+                                if(!res[_i].checked){
+                                    matchingSuccessfully();
+                                }
+
+                                
+                            }
+                        })
+                    })(i)
+
+                }
+
+            })
+
+
+                        //自分から送ったいいね
+            userDb.onMySelfComplimentListened(uid, function(res) {
+                var items = [];
+                for (var i = 0; i < res.length; i++) {
                     
     
-    
-    
-                },
-                allowOutsideClick: () => !swal.isLoading()
-                }).then((result) => {
-                    // if(result){
-                    //     userDb.setUserData(_uid,result,function(success){
-                    //     showAlert("登録成功")
-                    //     getMyInfo(_uid);
-                    // })
-                    // }
-    
+                         //this is the opposite person whom I have given a compliment
+       
+                        if(app != null && app != undefined){
+                            if(app.items != null && app.items != undefined){
+
+                                items = app.items;
+                                for(var j=0;j<items.length;j++){
+                                    if(items[j].uid == res[i].target){
+                                        items[j].success = 1
+                                        if(!res[i].checked){
+                                            matchingSuccessfully();   
+                                        }             
+                                    }
+                                }
+
+                            }
+                        }
+                }
+
+                if(items.length != 0){
+                    app.items = []
+                    app.items = items;
+                }
+
+            })
+
+
+        });
+
+    }
+
+
+    function showRegisterForm(_uid) {
+        swal({
+            title: 'ユーザー登録',
+            html: '<div>名前:<input id="swal-name" class="swal2-input"></div>' +
+                '<div class="swal2-radio">' +
+
+                '<label>' +
+                '<input type="radio" style="display:none" name="swal2-radio" value="female">' +
+                '<span class="swal2-label">女性</span>' +
+                '</label>' +
+
+                '<label>' +
+                '<input type="radio" name="swal2-radio" value="male">' +
+                '<span class="swal2-label">男性</span>' +
+                '</label>' +
+
+                '</div>' +
+                '<div id="warning"></div>',
+            showCancelButton: true,
+            confirmButtonText: '登録',
+            showLoaderOnConfirm: true,
+            preConfirm: (login) => {
+
+                swal_name = document.getElementById('swal-name').value;
+                swal_radios = document.getElementsByName('swal2-radio');
+                swal_sex = null;
+                for (i = 0; i < swal_radios.length; i++) {
+                    if (swal_radios[i].checked) {
+                        swal_sex = swal_radios[i].value
+                    }
+                }
+                var position;
+                if (nowLat == undefined || nowLng == undefined) {
+                    position = null
+                } else {
+                    position = new firebase.firestore.GeoPoint(nowLat, nowLng)
+                }
+
+
+
+                if (swal_name.length == 0) {
+                    document.getElementById("warning").innerText = "名前を入力してください"
+                    return false;
+                }
+
+
+                if (swal_sex == null) {
+                    document.getElementById("warning").innerText = "性別を入力してください"
+                    return false;
+                }
+
+
+                userDb.setUserData(_uid, {
+                    name: swal_name,
+                    sex: swal_sex,
+                    position: position
+                }, function(success) {
+                    showAlert("登録成功")
+                    getMyInfo(_uid);
                 })
-    
-    
-    
-    
-    
-        }
-    
-        function matchingSuccessfully(){
-            swal(
-                'マッチング成功',
-                'おめでとうございます',
-            )
-        }
-    
-        function alreadyDoneTheCompliment(){
-            showAlert("いいねもう付けましたよ");
-        }
-    
-        function showAlert(str){
-            swal({"text":str,"background":"opacity: 1"})
-        }
-    
-    
-    
-    
-    </script>
 
 
-    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha256-3edrmyuQ0w65f8gfBsqowzjJe2iM6n0nKciPUp8y+7E=" crossorigin="anonymous" defer></script>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBQdVnFEapGR5pn0W3zapAFG1fiCfCixFQ" defer></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/fingerprintjs2/1.6.1/fingerprint2.min.js" defer></script>
-    <script src="https://www.gstatic.com/firebasejs/4.12.1/firebase.js" defer></script>
-    <script src="https://www.gstatic.com/firebasejs/4.12.1/firebase-firestore.js" defer></script>
-    <script src="./docs/konkatsu/public/javascripts/config.js"></script>
-    <script src="./docs/konkatsu/public/javascripts/userDb.js" defer></script>
-    <script src="./docs/konkatsu/public/javascripts/sweetalert2.all.min.js" defer></script>
-    <link rel="stylesheet" href="./docs/konkatsu/public/stylesheets/sweetalert2.min.css">
+
+
+            },
+            allowOutsideClick: () => !swal.isLoading()
+        }).then((result) => {
+            // if(result){
+            //     userDb.setUserData(_uid,result,function(success){
+            //     showAlert("登録成功")
+            //     getMyInfo(_uid);
+            // })
+            // }
+
+        })
+
+    }
+
+    function matchingSuccessfully() {
+        swal(
+            'マッチング成功',
+            'おめでとうございます',
+        )
+    }
+
+    function alreadyDoneTheCompliment() {
+        showAlert("いいねもう付けましたよ");
+    }
+
+    function showReceiveSomeCompliment(data,str){
+        swal({
+            "text": str,
+            "background": "opacity: 1"
+        ,preConfirm:function(){
+
+        }
+        }).then((result) => {
+           userDb.updateComplimentInfo(data.id,{checked:true},function(res){
+
+           }) 
+
+        })
+    }
+
+    function showAlert(str) {
+        swal({
+            "text": str,
+            "background": "opacity: 1"
+        ,preConfirm:function(){
+
+        }
+        }).then((result) => {
+        if (result.value) {
+        }
+        })
+    }
+</script>
 
 
 </html>
