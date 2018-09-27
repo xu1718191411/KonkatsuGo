@@ -546,27 +546,27 @@
 
         })
 
-        var watchID = navigator.geolocation.watchPosition(function(position) {
-            nowLat = position.coords.latitude;
-            nowLng = position.coords.longitude;
-            console.log("pos : " + nowLat + "," + nowLng);
+        // var watchID = navigator.geolocation.watchPosition(function(position) {
+        //     nowLat = position.coords.latitude;
+        //     nowLng = position.coords.longitude;
+        //     console.log("pos : " + nowLat + "," + nowLng);
 
-            if(deviceUid == null) return;
+        //     if(deviceUid == null) return;
   
-            markerSet(deviceUid, nowLat, nowLng, users[0].name,users[0].sex); //update current position marks
-            position = new firebase.firestore.GeoPoint(nowLat, nowLng)
-            updateUserInfo(deviceUid, {
-                position: position
-            })
-            showMarks(); //refresh marks on the map
+        //     markerSet(deviceUid, nowLat, nowLng, users[0].name,users[0].sex); //update current position marks
+        //     position = new firebase.firestore.GeoPoint(nowLat, nowLng)
+        //     updateUserInfo(deviceUid, {
+        //         position: position
+        //     })
+        //     showMarks(); //refresh marks on the map
 
 
-            // 自分の位置情報更新
-            //updateLocalPosition and marks
-            // 
-            // setMyInfo();
-            // console.log(users[0]);
-        });
+        //     // 自分の位置情報更新
+        //     //updateLocalPosition and marks
+        //     // 
+        //     // setMyInfo();
+        //     // console.log(users[0]);
+        // });
 
 
         // 端末UID取得
