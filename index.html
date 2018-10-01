@@ -7,7 +7,7 @@
     <meta charset="utf-8">
     <script src="./docs/konkatsu/public/javascripts/vue.min.js"></script>
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBQdVnFEapGR5pn0W3zapAFG1fiCfCixFQ"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/fingerprintjs2/1.6.1/fingerprint2.min.js"></script>
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/fingerprintjs2/1.6.1/fingerprint2.min.js"></script> -->
     <!-- <script src="https://www.gstatic.com/firebasejs/4.12.1/firebase.js"></script>
     <script src="https://www.gstatic.com/firebasejs/4.12.1/firebase-firestore.js"></script> -->
     <script src="https://www.gstatic.com/firebasejs/5.3.0/firebase-app.js"></script>
@@ -199,33 +199,33 @@
             zoom: 17
         });
 
-        google.maps.event.addListener(map, "click", function(event) {
+        // google.maps.event.addListener(map, "click", function(event) {
 
-            var uid = generateID(32)
-            var lat = event.latLng.lat()
-            var lng = event.latLng.lng()
-            var name = generateName(5)
-            var position = new firebase.firestore.GeoPoint(lat, lng)
-                //save data
+        //     var uid = generateID(32)
+        //     var lat = event.latLng.lat()
+        //     var lng = event.latLng.lng()
+        //     var name = generateName(5)
+        //     var position = new firebase.firestore.GeoPoint(lat, lng)
+        //         //save data
 
-            var sex 
-            if(Math.random() < 0.5){
-                sex = "male";
-            }else{
-                sex = "female";
-            }
+        //     var sex 
+        //     if(Math.random() < 0.5){
+        //         sex = "male";
+        //     }else{
+        //         sex = "female";
+        //     }
 
-            userDb.setUserData(uid, {
-                name: name,
-                sex: sex,
-                position: position
-            }, function(success) {
-                console.log("登録成功")
-            })
+        //     userDb.setUserData(uid, {
+        //         name: name,
+        //         sex: sex,
+        //         position: position
+        //     }, function(success) {
+        //         console.log("登録成功")
+        //     })
 
-            markerSet(uid, lat, lng, name,sex);
+        //     markerSet(uid, lat, lng, name,sex);
 
-        })
+        // })
     }
 
     function generateID(length) {
@@ -519,9 +519,18 @@
 
     // 端末UID取得
     function getUID(cb) {
-        new Fingerprint2().get((result) => {
-            cb(result)
-        })
+        var deviceID = localStorage.getItem("deviceUid");
+        
+        if(deviceID == null || deviceID == undefined || deviceID.trim().length == 0){
+
+
+            if(deviceID.trim().length == 0)
+            deviceID = generateID(16);
+            localStorage.setItem('deviceUid', deviceID);
+        }
+
+        cb(deviceID);
+
     }
 
     // ロード後に最初に走る処理

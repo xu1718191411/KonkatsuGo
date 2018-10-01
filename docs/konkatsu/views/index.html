@@ -7,7 +7,7 @@
     <meta charset="utf-8">
     <script src="/javascripts/vue.min.js"></script>
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBQdVnFEapGR5pn0W3zapAFG1fiCfCixFQ"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/fingerprintjs2/1.6.1/fingerprint2.min.js"></script>
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/fingerprintjs2/1.6.1/fingerprint2.min.js"></script> -->
     <!-- <script src="https://www.gstatic.com/firebasejs/4.12.1/firebase.js"></script>
     <script src="https://www.gstatic.com/firebasejs/4.12.1/firebase-firestore.js"></script> -->
     <script src="https://www.gstatic.com/firebasejs/5.3.0/firebase-app.js"></script>
@@ -141,7 +141,6 @@
 
 <script src="/javascripts/viewers.js"></script>
 
-
 <script>
     var map;
     var nowLat, nowLng;
@@ -200,24 +199,33 @@
             zoom: 17
         });
 
-        google.maps.event.addListener(map, "click", function(event) {
+        // google.maps.event.addListener(map, "click", function(event) {
 
-            var uid = generateID(32)
-            var lat = event.latLng.lat()
-            var lng = event.latLng.lng()
-            var name = generateName(5)
-            var position = new firebase.firestore.GeoPoint(lat, lng)
-                //save data
-            userDb.setUserData(uid, {
-                name: name,
-                sex: "female",
-                position: position
-            }, function(success) {
-                console.log("登録成功")
-            })
-            markerSet(uid, lat, lng, name);
-            showMarks();
-        })
+        //     var uid = generateID(32)
+        //     var lat = event.latLng.lat()
+        //     var lng = event.latLng.lng()
+        //     var name = generateName(5)
+        //     var position = new firebase.firestore.GeoPoint(lat, lng)
+        //         //save data
+
+        //     var sex 
+        //     if(Math.random() < 0.5){
+        //         sex = "male";
+        //     }else{
+        //         sex = "female";
+        //     }
+
+        //     userDb.setUserData(uid, {
+        //         name: name,
+        //         sex: sex,
+        //         position: position
+        //     }, function(success) {
+        //         console.log("登録成功")
+        //     })
+
+        //     markerSet(uid, lat, lng, name,sex);
+
+        // })
     }
 
     function generateID(length) {
@@ -250,24 +258,69 @@
         map.setCenter(pos)
     }
 
-    //show all of the marks on the map
-    function showMarks() {
-        console.log(markers.length)
-        for (let marker of markers) {
-            if (marker) {
-                marker.setMap(map);
-            }
+    function updateCertainMarker(marker){
+        if(marker.sex == "male"){
+            marker.icon = "./docs/konkatsu/public/images/loveFromMale.png"
+        }else{
+            marker.icon = "./docs/konkatsu/public/images/loveFromFemale.png"
+        }
+
+        //markerSet(marker.id,marker.position.lat(),marker.position.lng(),marker.name,marker.sex)
+    }
+
+
+    function updateMarkerSet(id){
+        if(markers[id]){
+            var lat = markers[id].position.lat();
+            var lng = markers[id].position.lng();
+            var name = markers[id].name
+            var sex = markers[id].sex
+            markerSet(id,lat,lng,name,sex)
         }
     }
 
     //construct marks data
-    function markerSet(id, lat, lng, name) {
+    function markerSet(id, lat, lng, name,sex) {
 
-        if (!markers[id]) {
+        if(markers[id]){
+            markers[id].setMap(null);
+        }
+
+
+        if(sex == "male"){
             markers[id] = new google.maps.Marker({
-                icon:""
+            icon:"./docs/konkatsu/public/images/male.png"
+            });
+        }else{
+            markers[id] = new google.maps.Marker({
+            icon:"./docs/konkatsu/public/images/female.png"
             });
         }
+
+
+        for(var i=0;i<app.items.length;i++){
+                    if(app.items[i].uid == id){
+                        if(sex == "male"){
+                    markers[id] = new google.maps.Marker({
+                    icon:"./docs/konkatsu/public/images/loveFromMale.png"
+                    });
+                }else{
+                    markers[id] = new google.maps.Marker({
+                    icon:"./docs/konkatsu/public/images/loveFromFemale.png"
+                    });
+                }
+            }
+        }
+
+        if(id != deviceUid){
+            //自分ではない場合
+            if(users[0].sex == sex){
+            //同じ性別の人を表示させないように
+                markers[id].setMap(null);
+                return;
+            }
+        }
+
 
         if (lat && lng) {
             markers[id].setMap(map);
@@ -286,13 +339,13 @@
 
         markers[id].name = name
         markers[id].id = id
+        markers[id].sex = sex;
 
         if (id == deviceUid) {
             markers[id].setAnimation(google.maps.Animation.BOUNCE);
         }
 
         markerInfo(markers[id])
-            // console.log(markers[id]);
 
     }
 
@@ -300,11 +353,11 @@
 
         //add balloon popup listener
         google.maps.event.addListener(marker, 'click', function(event) {
-            console.log(marker)
             if (infoWindow != null) {
                 infoWindow.close()
             }
 
+            if(marker.id == deviceUid) return;
 
             var thisMarkHasGivenAComplimentForYou;
 
@@ -328,7 +381,6 @@
                     {latitude: marker.position.lat(), longitude: marker.position.lng()}
                 );
 
-                console.log(distance)
 
                 if(distanceForQuery >= distance || thisMarkHasGivenAComplimentForYou){
                 infoWindow = new google.maps.InfoWindow({
@@ -338,10 +390,6 @@
 
                 }
             }
-
-
-
-
 
             infoWindow.open(marker.getMap(), marker);
 
@@ -380,14 +428,20 @@
         users[0] = {};
         userDb.getUserData(_uid, function(doc) {
             if (doc.exists) {
-                console.log("Document data:", doc);
-                console.log(doc.data())
                 users[0] = doc.data();
+                markerSet(_uid,users[0].position.latitude,users[0].position.longitude,users[0].name,users[0].sex);
+                updateOtherMarkers();
             } else {
                 console.log("No such document!");
                 showRegisterForm(_uid);
             }
         });
+    }
+
+    function updateOtherMarkers(){
+        for(var mark in markers){
+            updateMarkerSet(markers.id);
+        }
     }
 
     function updateUserInfo(uid, data) {
@@ -400,84 +454,23 @@
         })
     }
 
-    // 近辺のユーザー情報取得、マーカー設置
-    //search nearby users
-    function getAreaUsers(lessPoint,greaterPoint) {
-
-        userDb.getAreaUsers(lessPoint,greaterPoint, function(list) {
-            console.log("getAreaUsers");
-            list.forEach(function(doc) {
-                if (doc.exists) {
-                    var data = doc.data()
-
-                    if (doc.id == deviceUid) {
-                        if (data.position != undefined && data.position != null) {
-                            if (!isNaN(data.position.latitude) && !isNaN(data.position.longitude)) {
-                                goToACertainPosition(new google.maps.LatLng(data.position.latitude, data.position.longitude));
-                            }
-                        }
-
-                    }
-                    if (data.position != undefined && data.position != null) {
-                        if (!isNaN(data.position.latitude) && !isNaN(data.position.longitude)) {
-
-                        // var distance = geolib.getDistance(
-                        //     {latitude: nowLat, longitude: nowLng},
-                        //     {latitude: data.position.latitude, longitude: data.position.longitude}
-                        // );
-
-                        // console.log(distance)
-
-                        //  if(distanceForQuery >= distance){
-                            markerSet(doc.id, data.position.latitude, data.position.longitude, data.name)
-                        //  }
-
-                        }
-                    }
-
-
-                }
-
-            });
-
-            showMarks();
-        });
-
-
-    }
 
     function receiveAreaUsers(list) {
         list.forEach(function(doc) {
             if (doc.exists) {
                 var data = doc.data()
 
-                if (doc.id != deviceUid) {
-
                     if (data.position != undefined && data.position != null) {
                         if (!isNaN(data.position.latitude) && !isNaN(data.position.longitude)) {
-
-                                    // var distance = geolib.getDistance(
-                                    //     {latitude: nowLat, longitude: nowLng},
-                                    //     {latitude: data.position.latitude, longitude: data.position.longitude}
-                                    // );
-
-                                    // console.log(distance)
-
-                                    // if(distanceForQuery >= distance){
-                                        markerSet(doc.id, data.position.latitude, data.position.longitude, data.name)
-                                    // }
-
-
-
+                            markerSet(doc.id, data.position.latitude, data.position.longitude, data.name,data.sex)
+                                
                         }
                     }
 
-                }
+                
             }
 
         });
-
-        showMarks();
     }
 
 
@@ -516,21 +509,28 @@
         for (let i = 0; i < 3; i++) {
             name += dict.charAt(Math.floor(Math.random() * dict.length));
         }
-        // console.log(name);
         return name;
     }
 
     function getDummyUserId(name) {
         var id = name; //+ (Math.floor(Math.random() * 1000000000000)).toString();
-        // console.log(id);
         return id;
     }
 
     // 端末UID取得
     function getUID(cb) {
-        new Fingerprint2().get((result) => {
-            cb(result)
-        })
+        var deviceID = localStorage.getItem("deviceUid");
+
+        if(deviceID == null || deviceID == undefined || deviceID.trim().length == 0){
+
+
+            if(deviceID.trim().length == 0)
+            deviceID = generateID(16);
+            localStorage.setItem('deviceUid', deviceID);
+        }
+
+        cb(deviceID);
+
     }
 
     // ロード後に最初に走る処理
@@ -546,41 +546,18 @@
 
             console.log(position)
 
+            //地図中心を現在地へ移動する
             goToCurrentPosition();
 
             // 端末UID取得
             getUID(function(uid) {
                 deviceUid = uid;
-                markerSet(uid, nowLat, nowLng, "あなた"); //update current position marks
+                //markerSet(uid, nowLat, nowLng, "あなた","male"); //update current position marks
                 position = new firebase.firestore.GeoPoint(nowLat, nowLng)
                 updateUserInfo(uid, {
                     position: position
                 })
-                showMarks(); //refresh marks on the map
             });
-
-
-            // console.log("Fingerprint: uid = " + uid);
-
-            //ユーザー情報を取得（取得できなければ、ユーザー登録）
-
-            // ~1 mile of lat and lon in degrees
-            // var lat = 0.0144927536231884
-            // var lon = 0.0181818181818182
-            
-            // var distance = 5
-            // var lowerLat = nowLat - (lat * distance)
-            // var lowerLon = nowLng - (lon * distance)
-
-            // var greaterLat = nowLat + (lat * distance)
-            // var greaterLon = nowLng + (lon * distance)
-
-            // var lesserGeopoint = new firebase.firestore.GeoPoint(lowerLat,lowerLon)
-            // var greaterGeopoint = new firebase.firestore.GeoPoint(greaterLat,greaterLon)
-
-            //getAreaUsers(lesserGeopoint,greaterGeopoint);
-
-
         })
 
         var watchID = navigator.geolocation.watchPosition(function(position) {
@@ -589,20 +566,14 @@
             console.log("pos : " + nowLat + "," + nowLng);
 
             if(deviceUid == null) return;
+            if(users[0] == null) return;
   
-            markerSet(deviceUid, nowLat, nowLng, "あなた"); //update current position marks
+            markerSet(deviceUid, nowLat, nowLng, users[0].name,users[0].sex); //update current position marks
             position = new firebase.firestore.GeoPoint(nowLat, nowLng)
             updateUserInfo(deviceUid, {
                 position: position
             })
-            showMarks(); //refresh marks on the map
 
-
-            // 自分の位置情報更新
-            //updateLocalPosition and marks
-            // 
-            // setMyInfo();
-            // console.log(users[0]);
         });
 
 
@@ -624,14 +595,12 @@
                 app.items = res;
 
                 for (var i = 0; i < res.length; i++) {
-                    if(res[i].checked) continue;
-
                     (function(_i) {
-
-
+                        updateMarkerSet(res[i].uid)
                         if(!res[_i].checked){
                             showReceiveSomeCompliment(res[_i],res[_i].fromName + "からいいねを付けられました");
                             userDb.updateComplimentInfo(res[_i].id,{checked:true},function(res){
+                                    //update the pin icon with the heart
 
                             }) 
                         }
@@ -653,6 +622,8 @@
 
                 }
 
+
+
             })
 
 
@@ -660,7 +631,7 @@
             userDb.onMySelfComplimentListened(uid, function(res) {
                 var items = [];
                 for (var i = 0; i < res.length; i++) {
-                    
+                    updateMarkerSet(res[i].target)
     
                          //this is the opposite person whom I have given a compliment
        
@@ -744,7 +715,7 @@
                     document.getElementById("warning").innerText = "性別を入力してください"
                     return false;
                 }
-
+            
 
                 userDb.setUserData(_uid, {
                     name: swal_name,
@@ -755,18 +726,9 @@
                     getMyInfo(_uid);
                 })
 
-
-
-
             },
             allowOutsideClick: () => !swal.isLoading()
         }).then((result) => {
-            // if(result){
-            //     userDb.setUserData(_uid,result,function(success){
-            //     showAlert("登録成功")
-            //     getMyInfo(_uid);
-            // })
-            // }
 
         })
 
@@ -811,7 +773,6 @@
         })
     }
 </script>
-
 
 
 </html>
