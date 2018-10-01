@@ -522,9 +522,6 @@
         var deviceID = localStorage.getItem("deviceUid");
         
         if(deviceID == null || deviceID == undefined || deviceID.trim().length == 0){
-
-
-            if(deviceID.trim().length == 0)
             deviceID = generateID(16);
             localStorage.setItem('deviceUid', deviceID);
         }
